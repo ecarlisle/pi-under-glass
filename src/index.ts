@@ -22,7 +22,7 @@ type Role = "user" | "assistant" | "toolResult";
 
 interface Message {
 	role: Role;
-	content: string | Array<{ type: string; text?: string }>;
+	content: string | Array<{ type: string; text?: string; thinking?: string }>;
 	usage?: ProviderUsage;
 }
 
@@ -168,15 +168,24 @@ export default function piUnderGlass(pi: PiApi): void {
 
 	pi.on("message_update", (event: { assistantMessageEvent?: { type: string; delta?: string } }) => {
 		const update = event.assistantMessageEvent;
-		if (activeAssistantId && update?.type === "text_delta" && update.delta) {
+		if (!activeAssistantId || !update?.delta) return;
+		if (update.type === "text_delta") {
 			publish("message.delta", { id: activeAssistantId, text: update.delta });
+		} else if (update.type === "thinking_delta") {
+			publish("message.thinking.delta", { id: activeAssistantId, text: update.delta });
 		}
 	});
 
 	pi.on("message_end", (event: { message: Message }) => {
 		if (event.message.role !== "assistant") return;
 		const id = activeAssistantId ?? `message-${++messageSequence}`;
-		publish("message.completed", { id, role: "assistant", text: messageText(event.message) });
+		const thinking = messageThinking(event.message);
+		publish("message.completed", {
+			id,
+			role: "assistant",
+			text: messageText(event.message),
+			...(thinking ? { thinking } : {}),
+		});
 		activeAssistantId = undefined;
 	});
 
@@ -219,23 +228,31 @@ export default function piUnderGlass(pi: PiApi): void {
 
 	pi.on("agent_settled", () => finishRun());
 
-	pi.on("tool_execution_start", (event: { toolCallId: string; toolName: string }) => {
+	pi.on("tool_execution_start", (event: { toolCallId: string; toolName: string; args?: unknown }) => {
 		toolStarts.set(event.toolCallId, Date.now());
 		tools += 1;
-		publish("tool.started", { id: event.toolCallId, name: event.toolName });
+		publish("tool.started", {
+			id: event.toolCallId,
+			name: event.toolName,
+			...(event.args !== undefined ? { args: event.args } : {}),
+		});
 		publish("metrics", metrics());
 	});
 
-	pi.on("tool_execution_end", (event: { toolCallId: string; toolName: string; isError: boolean }) => {
-		const beganAt = toolStarts.get(event.toolCallId) ?? Date.now();
-		toolStarts.delete(event.toolCallId);
-		publish("tool.completed", {
-			id: event.toolCallId,
-			name: event.toolName,
-			isError: event.isError,
-			durationMs: Date.now() - beganAt,
-		});
-	});
+	pi.on(
+		"tool_execution_end",
+		(event: { toolCallId: string; toolName: string; isError: boolean; result?: unknown }) => {
+			const beganAt = toolStarts.get(event.toolCallId) ?? Date.now();
+			toolStarts.delete(event.toolCallId);
+			publish("tool.completed", {
+				id: event.toolCallId,
+				name: event.toolName,
+				isError: event.isError,
+				durationMs: Date.now() - beganAt,
+				...(event.result !== undefined ? { result: event.result } : {}),
+			});
+		},
+	);
 
 	pi.on("session_shutdown", async () => {
 		finishRun();
@@ -270,6 +287,14 @@ function messageText(message: Message): string {
 	return message.content
 		.filter((part) => part.type === "text")
 		.map((part) => part.text ?? "")
+		.join("");
+}
+
+function messageThinking(message: Message): string {
+	if (typeof message.content === "string") return "";
+	return message.content
+		.filter((part) => part.type === "thinking")
+		.map((part) => part.thinking ?? "")
 		.join("");
 }
 

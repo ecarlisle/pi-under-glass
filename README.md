@@ -30,8 +30,9 @@ The command opens the viewer in your default browser and also displays its sessi
 ## What it observes
 
 - User and assistant messages, including live assistant text
+- Model thinking/reasoning traces (collapsed by default)
 - Input/output tokens and provider-reported cost
-- Tool starts, completions, duration, and error state
+- Tool calls with expandable args and results, duration, and error state
 - Session elapsed time
 
 The viewer is intentionally ephemeral: it does not persist conversations or replay earlier events to a newly opened tab. Open it before sending a prompt when you want the full live trace.

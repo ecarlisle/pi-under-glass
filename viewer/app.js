@@ -13,6 +13,7 @@ const elements = {
 
 const token = new URLSearchParams(location.search).get("token");
 const messages = new Map();
+const thinkingRows = new Map();
 const toolRows = new Map();
 const turnUsageRows = new Map();
 const runUsageRows = new Map();
@@ -55,6 +56,9 @@ function handle(event) {
 		case "message.delta":
 			handleMessageDelta(event);
 			break;
+		case "message.thinking.delta":
+			handleThinkingDelta(event);
+			break;
 		case "message.completed":
 			handleMessageCompleted(event);
 			break;
@@ -93,12 +97,33 @@ function handleMessageDelta(event) {
 	scrollToLatest();
 }
 
+function handleThinkingDelta(event) {
+	const row = ensureThinkingRow(event.data.id);
+	if (!row) return;
+	row.body.textContent += event.data.text;
+	row.body.classList.add("cursor");
+	scrollToLatest();
+}
+
 function handleMessageCompleted(event) {
 	const content = messages.get(event.data.id) ?? createMessage(event.data.id, event.data.role, event.data.text);
 	setMessageContent(content, event.data.text, event.data.role);
 	content.classList.remove("cursor");
-	if (event.data.role === "assistant" && !event.data.text) content.closest(".message-block")?.remove();
+	finalizeThinking(event.data.id, event.data.thinking);
+	if (shouldRemoveEmptyAssistant(event.data)) content.closest(".message-block")?.remove();
 	scrollToLatest();
+}
+
+function shouldRemoveEmptyAssistant({ role, text, thinking }) {
+	return role === "assistant" && !text && !thinking;
+}
+
+function finalizeThinking(messageId, thinking) {
+	if (!thinking) return;
+	const row = ensureThinkingRow(messageId);
+	if (!row) return;
+	row.body.innerHTML = renderMarkdown(thinking);
+	row.body.classList.remove("cursor");
 }
 
 function handleTurnUsage(event) {
@@ -128,20 +153,100 @@ function handleRunCompleted(event) {
 
 function handleToolStarted(event) {
 	const group = lastAgentGroup ?? createSpeakerGroup("assistant");
-	const content = createBlock(group, `Tool · ${event.data.name}`, "running", "tool-block");
-	toolRows.set(event.data.id, content);
+	const row = createToolRow(group, event.data.name);
+	row.row.classList.add("running");
+	row.status.textContent = "running";
+	if (event.data.args !== undefined) {
+		addToolSection(row.body, "Args", truncateText(toolValueText(event.data.args)));
+	}
+	toolRows.set(event.data.id, row);
 	scrollToLatest();
 }
 
 function handleToolCompleted(event) {
-	let content = toolRows.get(event.data.id);
-	if (!content) {
+	let row = toolRows.get(event.data.id);
+	if (!row) {
 		const group = lastAgentGroup ?? createSpeakerGroup("assistant");
-		content = createBlock(group, `Tool · ${event.data.name}`, "", "tool-block");
+		row = createToolRow(group, event.data.name);
 	}
-	content.textContent = `${event.data.isError ? "failed" : "done"} · ${formatDuration(event.data.durationMs)}`;
-	if (event.data.isError) content.closest(".message-block")?.classList.add("error");
+	row.row.classList.remove("running");
+	row.status.textContent = `${event.data.isError ? "failed" : "done"} · ${formatDuration(event.data.durationMs)}`;
+	if (event.data.isError) row.row.classList.add("error");
+	if (event.data.result !== undefined) {
+		addToolSection(row.body, "Result", truncateText(toolValueText(event.data.result)), event.data.isError);
+	}
+	toolRows.set(event.data.id, row);
 	scrollToLatest();
+}
+
+/** Builds a collapsible tool row: <details> with summary (name + status) and a detail body. */
+function createToolRow(group, name) {
+	const row = document.createElement("details");
+	row.className = "message-block tool-block";
+	const summary = document.createElement("summary");
+	summary.className = "tool-summary";
+	const title = document.createElement("span");
+	title.className = "tool-name";
+	title.textContent = `Tool · ${name}`;
+	const status = document.createElement("span");
+	status.className = "tool-status";
+	summary.append(title, status);
+	const body = document.createElement("div");
+	body.className = "tool-details";
+	row.append(summary, body);
+	group.append(row);
+	return { row, status, body };
+}
+
+function addToolSection(body, label, text, isError = false) {
+	const section = document.createElement("div");
+	section.className = "tool-section";
+	const heading = document.createElement("h4");
+	heading.textContent = label;
+	const pre = document.createElement("pre");
+	pre.textContent = text;
+	if (isError) pre.classList.add("error");
+	section.append(heading, pre);
+	body.append(section);
+}
+
+const TOOL_TEXT_LIMIT = 2000;
+
+function toolValueText(value) {
+	if (typeof value === "object" && value !== null) {
+		try {
+			return JSON.stringify(value, null, 2);
+		} catch {
+			return String(value);
+		}
+	}
+	return String(value);
+}
+
+function truncateText(text, limit = TOOL_TEXT_LIMIT) {
+	if (text.length <= limit) return text;
+	return `${text.slice(0, limit)}\n… omitted ${text.length - limit} chars`;
+}
+
+/** Gets or creates the collapsible Thinking row inside the message block, above the answer text. */
+function ensureThinkingRow(messageId) {
+	const content = messages.get(messageId);
+	const block = content?.closest(".message-block");
+	if (!block) return undefined;
+	let row = thinkingRows.get(messageId);
+	if (!row) {
+		const details = document.createElement("details");
+		details.className = "thinking-block";
+		const summary = document.createElement("summary");
+		summary.textContent = "Thinking";
+		const body = document.createElement("div");
+		body.className = "thinking-content";
+		details.append(summary, body);
+		block.insertBefore(details, content);
+		row = { details, body };
+		thinkingRows.set(messageId, row);
+	}
+	return row;
 }
 
 function createMessage(id, role, text) {

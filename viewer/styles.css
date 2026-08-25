@@ -61,8 +61,50 @@ h1 { margin: 0; font-size: 26px; }
 .message-type { margin-bottom: 5px; color: #777; font-size: 10px; font-weight: 600; text-transform: uppercase; }
 .content { min-width: 0; font-size: 14px; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; }
 .usage-block .content { color: #666; font: 12px/1.55 ui-monospace, monospace; }
-.tool-block .content { color: #666; font: 12px/1.55 ui-monospace, monospace; }
-.tool-block.error .content { color: #a52a2a; }
+.tool-block > summary {
+	cursor: pointer;
+	color: #666;
+	font: 600 12px/1.55 ui-monospace, monospace;
+	text-transform: uppercase;
+}
+.tool-block .tool-status { margin-left: 8px; font-weight: 400; text-transform: none; }
+.tool-block.error .tool-status { color: #a52a2a; }
+.tool-details { margin-top: 8px; }
+.tool-section + .tool-section { margin-top: 8px; }
+.tool-section h4 { margin: 0 0 4px; color: #999; font-size: 10px; font-weight: 600; text-transform: uppercase; }
+.tool-section pre {
+	margin: 0;
+	padding: 8px 10px;
+	border: 1px solid #ededed;
+	border-radius: 4px;
+	background: #fafafa;
+	color: #444;
+	font: 12px/1.5 ui-monospace, monospace;
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+	max-height: 240px;
+	overflow: auto;
+}
+.tool-section pre.error { color: #a52a2a; border-color: #e2c6c6; background: #fdf6f6; }
+.thinking-block { margin-bottom: 10px; }
+.thinking-block > summary {
+	cursor: pointer;
+	color: #8a6d3b;
+	font: 600 12px/1.55 ui-monospace, monospace;
+	text-transform: uppercase;
+}
+.thinking-block .thinking-content {
+	margin-top: 8px;
+	padding: 8px 10px;
+	border: 1px solid #ede4cf;
+	border-radius: 4px;
+	background: #fdfaf3;
+	color: #6b5d3f;
+	font-size: 13px;
+	line-height: 1.55;
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+}
 .cursor::after { content: "|"; color: #777; animation: blink 1s steps(1) infinite; }
 @keyframes blink { 50% { opacity: 0; } }
 

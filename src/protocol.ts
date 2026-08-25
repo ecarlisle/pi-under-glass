@@ -23,9 +23,10 @@ export interface Metrics {
 
 export interface EventDataMap {
 	"session.started": { cwd: string };
-	"message.completed": { id: string; role: "user" | "assistant"; text: string };
+	"message.completed": { id: string; role: "user" | "assistant"; text: string; thinking?: string };
 	"message.started": { id: string; role: "assistant" };
 	"message.delta": { id: string; text: string };
+	"message.thinking.delta": { id: string; text: string };
 	"turn.usage": {
 		id: string;
 		messageId?: string;
@@ -34,8 +35,14 @@ export interface EventDataMap {
 		contextSnapshot?: ContextSnapshot;
 	};
 	"run.completed": { id: string; modelRequests: number; usage: UsageValues };
-	"tool.started": { id: string; name: string };
-	"tool.completed": { id: string; name: string; isError: boolean; durationMs: number };
+	"tool.started": { id: string; name: string; args?: unknown };
+	"tool.completed": {
+		id: string;
+		name: string;
+		isError: boolean;
+		durationMs: number;
+		result?: unknown;
+	};
 	metrics: Metrics;
 }
 
