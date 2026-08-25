@@ -150,18 +150,24 @@ export default function piUnderGlass(pi: PiApi): void {
 		}
 	});
 
+	pi.on("before_agent_start", (event: { systemPrompt: string }) => {
+		const run = beginRun();
+		if (event.systemPrompt) publish("run.systemPrompt", { runId: run.id, text: event.systemPrompt });
+	});
+
 	pi.on("message_start", (event: { message: Message }) => {
 		if (event.message.role === "user") {
-			beginRun();
+			if (!activeRun) beginRun();
 			publish("message.completed", {
 				id: `message-${++messageSequence}`,
 				role: "user",
 				text: messageText(event.message),
 			});
 		} else if (event.message.role === "assistant") {
+			const run = currentRun();
 			activeAssistantId = `message-${++messageSequence}`;
 			if (activeTurn) activeTurn.messageId = activeAssistantId;
-			publish("message.started", { id: activeAssistantId, role: "assistant" });
+			publish("message.started", { id: activeAssistantId, role: "assistant", runId: run.id });
 		}
 	});
 

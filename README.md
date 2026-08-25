@@ -30,6 +30,7 @@ The command opens the viewer in your default browser and also displays its sessi
 ## What it observes
 
 - User and assistant messages, including live assistant text
+- The effective system prompt for an Agent run (hidden and collapsed by default)
 - Model thinking/reasoning traces (collapsed by default)
 - Input/output tokens and provider-reported cost
 - Tool calls with expandable args and results, duration, and error state

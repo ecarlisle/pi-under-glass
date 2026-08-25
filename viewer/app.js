@@ -9,6 +9,13 @@ const elements = {
 	contextValue: document.querySelector("#context-value"),
 	events: document.querySelector("#events"),
 	empty: document.querySelector("#empty"),
+	options: document.querySelector(".options"),
+	showUsage: document.querySelector("#show-usage"),
+	showToolInput: document.querySelector("#show-tool-input"),
+	showToolResults: document.querySelector("#show-tool-results"),
+	showTimestamps: document.querySelector("#show-timestamps"),
+	showThinking: document.querySelector("#show-thinking"),
+	showSystemPrompt: document.querySelector("#show-system-prompt"),
 	expandThinking: document.querySelector("#expand-thinking"),
 	expandTools: document.querySelector("#expand-tools"),
 };
@@ -16,15 +23,33 @@ const elements = {
 const parameters = new URLSearchParams(location.search);
 const token = parameters.get("token");
 const debug = parameters.get("debug") === "1";
+const timeFormatter = new Intl.DateTimeFormat([], {
+	hour: "numeric",
+	minute: "2-digit",
+	second: "2-digit",
+});
 const messages = new Map();
 const thinkingRows = new Map();
 const toolRows = new Map();
 const turnUsageRows = new Map();
 const runUsageRows = new Map();
+const runGroups = new Map();
+const systemPrompts = new Map();
+const renderedSystemPrompts = new Set();
 let startedAt = Date.now();
 let retryTimer;
 let lastAgentGroup;
 
+for (const option of [
+	elements.showUsage,
+	elements.showToolInput,
+	elements.showToolResults,
+	elements.showTimestamps,
+	elements.showThinking,
+	elements.showSystemPrompt,
+]) {
+	option.addEventListener("change", applyContentOptions);
+}
 elements.expandThinking.addEventListener("change", () => {
 	setDetailsOpen(".thinking-block", elements.expandThinking.checked);
 });
@@ -35,6 +60,22 @@ elements.expandTools.addEventListener("change", () => {
 function setDetailsOpen(selector, open) {
 	for (const details of document.querySelectorAll(selector)) details.open = open;
 }
+
+function applyContentOptions() {
+	document.body.classList.toggle("show-usage", elements.showUsage.checked);
+	document.body.classList.toggle("show-tool-input", elements.showToolInput.checked);
+	document.body.classList.toggle("show-tool-results", elements.showToolResults.checked);
+	document.body.classList.toggle("show-timestamps", elements.showTimestamps.checked);
+	document.body.classList.toggle("show-thinking", elements.showThinking.checked);
+	document.body.classList.toggle("show-system-prompt", elements.showSystemPrompt.checked);
+}
+
+applyContentOptions();
+const optionsObserver = new ResizeObserver(() => {
+	const height = Math.ceil(elements.options.getBoundingClientRect().height);
+	document.documentElement.style.setProperty("--options-height", `${height}px`);
+});
+optionsObserver.observe(elements.options);
 
 function connect() {
 	if (!token) return setStatus("Missing token", false);
@@ -64,11 +105,16 @@ async function playDebugFixture() {
 		if (!response.ok) throw new Error("fixture unavailable");
 		const fixture = await response.json();
 		if (!fixture?.hello || !Array.isArray(fixture.events)) throw new Error("invalid fixture");
-		handle({ ...fixture.hello, startedAt: Date.now() });
+		const fixtureStartedAt = Number.isFinite(fixture.hello.startedAt) ? fixture.hello.startedAt : 0;
+		const playbackStartedAt = Date.now();
+		handle({ ...fixture.hello, startedAt: playbackStartedAt });
 		for (const item of fixture.events) {
 			const delay = Number.isFinite(item.afterMs) ? Math.max(0, item.afterMs) : 0;
 			if (delay > 0) await new Promise((resolve) => setTimeout(resolve, delay));
-			handle(item.event);
+			const at = Number.isFinite(item.event?.at)
+				? playbackStartedAt + Math.max(0, item.event.at - fixtureStartedAt)
+				: Date.now();
+			handle({ ...item.event, at });
 		}
 	} catch {
 		setStatus("Sample unavailable", false);
@@ -85,6 +131,9 @@ function handle(event) {
 			break;
 		case "metrics":
 			handleMetrics(event);
+			break;
+		case "run.systemPrompt":
+			handleSystemPrompt(event);
 			break;
 		case "message.started":
 			handleMessageStarted(event);
@@ -123,11 +172,36 @@ function handleMetrics(event) {
 }
 
 function handleMessageStarted(event) {
-	createMessage(event.data.id, "assistant", "");
+	const content = createMessage(event.data.id, "assistant", "", event.at);
+	const group = content.closest(".message-group");
+	runGroups.set(event.data.runId, group);
+	renderSystemPrompt(event.data.runId, group);
+}
+
+function handleSystemPrompt(event) {
+	systemPrompts.set(event.data.runId, { text: event.data.text, at: event.at });
+	const group = runGroups.get(event.data.runId);
+	if (group) renderSystemPrompt(event.data.runId, group);
+}
+
+function renderSystemPrompt(runId, group) {
+	const prompt = systemPrompts.get(runId);
+	if (!prompt || renderedSystemPrompts.has(runId)) return;
+	const details = document.createElement("details");
+	details.className = "message-block system-prompt-block";
+	const summary = document.createElement("summary");
+	summary.append("System prompt", createTimestamp(prompt.at));
+	const content = document.createElement("div");
+	content.className = "system-prompt-content";
+	content.textContent = prompt.text;
+	details.append(summary, content);
+	group.prepend(details);
+	renderedSystemPrompts.add(runId);
+	systemPrompts.delete(runId);
 }
 
 function handleMessageDelta(event) {
-	const content = messages.get(event.data.id) ?? createMessage(event.data.id, "assistant", "");
+	const content = messages.get(event.data.id) ?? createMessage(event.data.id, "assistant", "", event.at);
 	content.textContent += event.data.text;
 	content.classList.add("cursor");
 	scrollToLatest();
@@ -142,7 +216,8 @@ function handleThinkingDelta(event) {
 }
 
 function handleMessageCompleted(event) {
-	const content = messages.get(event.data.id) ?? createMessage(event.data.id, event.data.role, event.data.text);
+	const content =
+		messages.get(event.data.id) ?? createMessage(event.data.id, event.data.role, event.data.text, event.at);
 	setMessageContent(content, event.data.text, event.data.role);
 	content.classList.remove("cursor");
 	finalizeThinking(event.data.id, event.data.thinking);
@@ -167,7 +242,7 @@ function handleTurnUsage(event) {
 	const group = message?.closest(".message-group") ?? lastAgentGroup ?? createSpeakerGroup("assistant");
 	let content = turnUsageRows.get(event.data.id);
 	if (!content) {
-		content = createBlock(group, "Turn usage", "", "usage-block");
+		content = createBlock(group, "Turn usage", "", "usage-block", event.at);
 		turnUsageRows.set(event.data.id, content);
 	}
 	content.textContent = formatUsage(event.data.usage);
@@ -179,7 +254,7 @@ function handleRunCompleted(event) {
 	const group = lastAgentGroup ?? createSpeakerGroup("assistant");
 	let content = runUsageRows.get(event.data.id);
 	if (!content) {
-		content = createBlock(group, "Agent run usage", "", "usage-block");
+		content = createBlock(group, "Agent run usage", "", "usage-block", event.at);
 		runUsageRows.set(event.data.id, content);
 	}
 	const requestLabel = event.data.modelRequests === 1 ? "1 model request" : `${event.data.modelRequests} model requests`;
@@ -189,11 +264,11 @@ function handleRunCompleted(event) {
 
 function handleToolStarted(event) {
 	const group = lastAgentGroup ?? createSpeakerGroup("assistant");
-	const row = createToolRow(group, event.data.name);
+	const row = createToolRow(group, event.data.name, event.at);
 	row.row.classList.add("running");
 	row.status.textContent = "running";
 	if (event.data.args !== undefined) {
-		addToolSection(row.body, "Args", truncateText(toolValueText(event.data.args)));
+		addToolSection(row.body, "Args", truncateText(toolValueText(event.data.args)), "tool-input");
 	}
 	toolRows.set(event.data.id, row);
 	scrollToLatest();
@@ -203,20 +278,26 @@ function handleToolCompleted(event) {
 	let row = toolRows.get(event.data.id);
 	if (!row) {
 		const group = lastAgentGroup ?? createSpeakerGroup("assistant");
-		row = createToolRow(group, event.data.name);
+		row = createToolRow(group, event.data.name, event.at);
 	}
 	row.row.classList.remove("running");
 	row.status.textContent = `${event.data.isError ? "failed" : "done"} · ${formatDuration(event.data.durationMs)}`;
 	if (event.data.isError) row.row.classList.add("error");
 	if (event.data.result !== undefined) {
-		addToolSection(row.body, "Result", truncateText(toolValueText(event.data.result)), event.data.isError);
+		addToolSection(
+			row.body,
+			"Result",
+			truncateText(toolValueText(event.data.result)),
+			"tool-result",
+			event.data.isError,
+		);
 	}
 	toolRows.set(event.data.id, row);
 	scrollToLatest();
 }
 
 /** Builds a collapsible tool row: <details> with summary (name + status) and a detail body. */
-function createToolRow(group, name) {
+function createToolRow(group, name, at) {
 	const row = document.createElement("details");
 	row.className = "message-block tool-block";
 	row.open = elements.expandTools.checked;
@@ -227,7 +308,7 @@ function createToolRow(group, name) {
 	title.textContent = `Tool · ${name}`;
 	const status = document.createElement("span");
 	status.className = "tool-status";
-	summary.append(title, status);
+	summary.append(title, status, createTimestamp(at));
 	const body = document.createElement("div");
 	body.className = "tool-details";
 	row.append(summary, body);
@@ -235,9 +316,9 @@ function createToolRow(group, name) {
 	return { row, status, body };
 }
 
-function addToolSection(body, label, text, isError = false) {
+function addToolSection(body, label, text, className, isError = false) {
 	const section = document.createElement("div");
-	section.className = "tool-section";
+	section.className = `tool-section ${className}`;
 	const heading = document.createElement("h4");
 	heading.textContent = label;
 	const pre = document.createElement("pre");
@@ -287,9 +368,9 @@ function ensureThinkingRow(messageId) {
 	return row;
 }
 
-function createMessage(id, role, text) {
+function createMessage(id, role, text, at) {
 	const group = createSpeakerGroup(role);
-	const content = createBlock(group, role === "assistant" ? "Text" : "", text);
+	const content = createBlock(group, role === "assistant" ? "Text" : "", text, "", at);
 	messages.set(id, content);
 	return content;
 }
@@ -327,7 +408,7 @@ function createRoleIcon(role) {
 	return svg;
 }
 
-function createBlock(group, type, text, className = "") {
+function createBlock(group, type, text, className = "", at) {
 	const block = document.createElement("div");
 	block.className = `message-block ${className}`.trim();
 	if (type) {
@@ -336,12 +417,21 @@ function createBlock(group, type, text, className = "") {
 		typeLabel.textContent = type;
 		block.append(typeLabel);
 	}
+	block.append(createTimestamp(at));
 	const content = document.createElement("div");
 	content.className = "content";
 	content.textContent = text;
 	block.append(content);
 	group.append(block);
 	return content;
+}
+
+function createTimestamp(at) {
+	const time = document.createElement("time");
+	time.className = "timestamp";
+	time.dateTime = new Date(at).toISOString();
+	time.textContent = timeFormatter.format(at);
+	return time;
 }
 
 /**

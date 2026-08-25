@@ -23,8 +23,9 @@ export interface Metrics {
 
 export interface EventDataMap {
 	"session.started": { cwd: string };
+	"run.systemPrompt": { runId: string; text: string };
 	"message.completed": { id: string; role: "user" | "assistant"; text: string; thinking?: string };
-	"message.started": { id: string; role: "assistant" };
+	"message.started": { id: string; role: "assistant"; runId: string };
 	"message.delta": { id: string; text: string };
 	"message.thinking.delta": { id: string; text: string };
 	"turn.usage": {

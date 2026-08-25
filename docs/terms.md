@@ -6,7 +6,8 @@
 - **Model invocation:** One request to a model provider and its response. In Pi, this is normally the accounting unit for one Turn.
 - **Message:** One conversation item with a Role and one or more content blocks.
 - **Role:** The source or function assigned to a Message. Pi uses `user`, `assistant`, and `toolResult`; the viewer labels `user` as User and `assistant` as Agent.
-- **Content type:** The kind of content within a Message, such as Text, Thinking, Tool call, or Tool result as presented by the viewer.
+- **Content type:** The kind of content within a Message or Agent run, such as Text, Thinking, System prompt, Tool call, or Tool result as presented by the viewer.
+- **System prompt:** Request-level instructions Pi sends to the model for an Agent run. It is configuration for the model, not a dialogue participant or ordinary Message.
 - **Tool call:** An Agent request to invoke a named tool with specific input.
 - **Tool result:** The outcome associated with a Tool call, including output, failure, or status.
 - **Thinking:** Intermediate model content exposed by Pi as a `thinking` content block. It is distinct from provider-reported Reasoning tokens.
@@ -16,7 +17,7 @@
 
 ## UI hierarchy
 
-User and Agent are the dialogue participants. Agent is the viewer label for Pi's `assistant` Role. Tool calls and tool results appear as typed content within the Agent run, not as a peer speaker lane. This is a presentation hierarchy; it does not change Pi's underlying Message roles. Use it when choosing labels in the extension and viewer.
+User and Agent are the dialogue participants. Agent is the viewer label for Pi's `assistant` Role. The System prompt, Tool calls, and Tool results appear as typed content within the Agent run, not as peer speaker lanes. This is a presentation hierarchy; it does not change Pi's underlying Message roles. Use it when choosing labels in the extension and viewer.
 
 ## Token accounting
 

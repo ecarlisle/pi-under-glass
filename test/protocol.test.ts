@@ -14,3 +14,8 @@ test("creates a versioned event envelope", () => {
 		data: { id: "message-1", text: "hello" },
 	});
 });
+
+test("represents a system prompt as Agent-run configuration", () => {
+	const event = createEvent("session-1", 8, "run.systemPrompt", { runId: "run-1", text: "Be concise." }, 1235);
+	assert.deepEqual(event.data, { runId: "run-1", text: "Be concise." });
+});

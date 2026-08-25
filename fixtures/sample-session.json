@@ -5,231 +5,387 @@
     "sessionId": "sample-session",
     "startedAt": 0,
     "cwd": "",
-    "metrics": {
-      "modelRequests": 0,
-      "usage": {},
-      "tools": 0
-    }
+    "metrics": { "modelRequests": 0, "usage": {}, "tools": 0 }
   },
   "events": [
     {
-      "afterMs": 100,
+      "afterMs": 20,
       "event": {
-        "v": 2,
-        "seq": 1,
-        "at": 100,
-        "sessionId": "sample-session",
-        "type": "message.completed",
+        "v": 2, "seq": 1, "at": 20, "sessionId": "sample-session", "type": "run.systemPrompt",
         "data": {
-          "id": "sample-user-1",
-          "role": "user",
-          "text": "Inspect the project and report its current status."
-        }
-      }
-    },
-    {
-      "afterMs": 250,
-      "event": {
-        "v": 2,
-        "seq": 2,
-        "at": 350,
-        "sessionId": "sample-session",
-        "type": "message.started",
-        "data": {
-          "id": "sample-agent-1",
-          "role": "assistant"
-        }
-      }
-    },
-    {
-      "afterMs": 200,
-      "event": {
-        "v": 2,
-        "seq": 3,
-        "at": 550,
-        "sessionId": "sample-session",
-        "type": "message.thinking.delta",
-        "data": {
-          "id": "sample-agent-1",
-          "text": "First, inspect the repository structure and active changes.\n"
-        }
-      }
-    },
-    {
-      "afterMs": 150,
-      "event": {
-        "v": 2,
-        "seq": 4,
-        "at": 700,
-        "sessionId": "sample-session",
-        "type": "message.thinking.delta",
-        "data": {
-          "id": "sample-agent-1",
-          "text": "Next, run targeted checks and compare the results with expected behavior.\n"
-        }
-      }
-    },
-    {
-      "afterMs": 150,
-      "event": {
-        "v": 2,
-        "seq": 5,
-        "at": 850,
-        "sessionId": "sample-session",
-        "type": "message.thinking.delta",
-        "data": {
-          "id": "sample-agent-1",
-          "text": "Finally, confirm the viewer connection and summarize any remaining risk."
-        }
-      }
-    },
-    {
-      "afterMs": 250,
-      "event": {
-        "v": 2,
-        "seq": 6,
-        "at": 1100,
-        "sessionId": "sample-session",
-        "type": "tool.started",
-        "data": {
-          "id": "sample-tool-1",
-          "name": "check",
-          "args": {
-            "command": "pnpm test"
-          }
-        }
-      }
-    },
-    {
-      "afterMs": 350,
-      "event": {
-        "v": 2,
-        "seq": 7,
-        "at": 1450,
-        "sessionId": "sample-session",
-        "type": "tool.completed",
-        "data": {
-          "id": "sample-tool-1",
-          "name": "check",
-          "isError": false,
-          "durationMs": 184,
-          "result": "All tests passed."
-        }
-      }
-    },
-    {
-      "afterMs": 200,
-      "event": {
-        "v": 2,
-        "seq": 8,
-        "at": 1650,
-        "sessionId": "sample-session",
-        "type": "message.delta",
-        "data": {
-          "id": "sample-agent-1",
-          "text": "The project is healthy. "
-        }
-      }
-    },
-    {
-      "afterMs": 200,
-      "event": {
-        "v": 2,
-        "seq": 9,
-        "at": 1850,
-        "sessionId": "sample-session",
-        "type": "message.delta",
-        "data": {
-          "id": "sample-agent-1",
-          "text": "All checks pass and the viewer is connected."
-        }
-      }
-    },
-    {
-      "afterMs": 150,
-      "event": {
-        "v": 2,
-        "seq": 10,
-        "at": 2000,
-        "sessionId": "sample-session",
-        "type": "message.completed",
-        "data": {
-          "id": "sample-agent-1",
-          "role": "assistant",
-          "text": "The project is healthy. All checks pass and the viewer is connected.",
-          "thinking": "First, inspect the repository structure and active changes.\nNext, run targeted checks and compare the results with expected behavior.\nFinally, confirm the viewer connection and summarize any remaining risk."
-        }
-      }
-    },
-    {
-      "afterMs": 100,
-      "event": {
-        "v": 2,
-        "seq": 11,
-        "at": 2100,
-        "sessionId": "sample-session",
-        "type": "turn.usage",
-        "data": {
-          "id": "sample-turn-1",
-          "messageId": "sample-agent-1",
           "runId": "sample-run-1",
-          "usage": {
-            "inputTokens": 7200,
-            "outputTokens": 410,
-            "reasoningTokens": 120,
-            "cacheReadTokens": 3200,
-            "cost": 0.021
-          },
-          "contextSnapshot": {
-            "inputTokens": 7200,
-            "contextWindow": 128000
-          }
+          "text": "You are Pi, a coding agent. Keep responses concise, preserve local-first behavior, and verify claims before reporting them."
         }
       }
     },
     {
       "afterMs": 100,
       "event": {
-        "v": 2,
-        "seq": 12,
-        "at": 2200,
-        "sessionId": "sample-session",
-        "type": "run.completed",
+        "v": 2, "seq": 2, "at": 100, "sessionId": "sample-session", "type": "message.completed",
+        "data": { "id": "sample-user-1", "role": "user", "text": "Summarize the project and its current validation status." }
+      }
+    },
+    {
+      "afterMs": 80,
+      "event": {
+        "v": 2, "seq": 3, "at": 180, "sessionId": "sample-session", "type": "message.started",
+        "data": { "id": "sample-agent-1", "role": "assistant", "runId": "sample-run-1" }
+      }
+    },
+    {
+      "afterMs": 80,
+      "event": {
+        "v": 2, "seq": 4, "at": 260, "sessionId": "sample-session", "type": "message.delta",
+        "data": { "id": "sample-agent-1", "text": "**Project snapshot**\n\n- Local Pi extension\n- Browser viewer connected\n\n" }
+      }
+    },
+    {
+      "afterMs": 80,
+      "event": {
+        "v": 2, "seq": 5, "at": 340, "sessionId": "sample-session", "type": "message.completed",
         "data": {
-          "id": "sample-run-1",
-          "modelRequests": 1,
-          "usage": {
-            "inputTokens": 7200,
-            "outputTokens": 410,
-            "reasoningTokens": 120,
-            "cacheReadTokens": 3200,
-            "cost": 0.021
-          }
+          "id": "sample-agent-1", "role": "assistant",
+          "text": "**Project snapshot**\n\n- Local Pi extension\n- Browser viewer connected\n\n`pnpm check` and the test suite are ready to run."
         }
       }
     },
     {
-      "afterMs": 100,
+      "afterMs": 60,
       "event": {
-        "v": 2,
-        "seq": 13,
-        "at": 2300,
-        "sessionId": "sample-session",
-        "type": "metrics",
+        "v": 2, "seq": 6, "at": 400, "sessionId": "sample-session", "type": "turn.usage",
+        "data": {
+          "id": "sample-turn-1", "messageId": "sample-agent-1", "runId": "sample-run-1",
+          "usage": { "inputTokens": 1800, "outputTokens": 120, "reasoningTokens": 0, "cacheReadTokens": 0, "cacheWriteTokens": 120, "cost": 0.0032 },
+          "contextSnapshot": { "inputTokens": 1800, "contextWindow": 128000 }
+        }
+      }
+    },
+    {
+      "afterMs": 60,
+      "event": {
+        "v": 2, "seq": 7, "at": 460, "sessionId": "sample-session", "type": "run.completed",
+        "data": {
+          "id": "sample-run-1", "modelRequests": 1,
+          "usage": { "inputTokens": 1800, "outputTokens": 120, "reasoningTokens": 0, "cacheReadTokens": 0, "cacheWriteTokens": 120, "cost": 0.0032 }
+        }
+      }
+    },
+    {
+      "afterMs": 60,
+      "event": {
+        "v": 2, "seq": 8, "at": 520, "sessionId": "sample-session", "type": "metrics",
         "data": {
           "modelRequests": 1,
-          "usage": {
-            "inputTokens": 7200,
-            "outputTokens": 410,
-            "reasoningTokens": 120,
-            "cacheReadTokens": 3200,
-            "cost": 0.021
-          },
-          "tools": 1,
-          "latestContext": {
-            "inputTokens": 7200,
-            "contextWindow": 128000
-          }
+          "usage": { "inputTokens": 1800, "outputTokens": 120, "reasoningTokens": 0, "cacheReadTokens": 0, "cacheWriteTokens": 120, "cost": 0.0032 },
+          "tools": 0,
+          "latestContext": { "inputTokens": 1800, "contextWindow": 128000 }
+        }
+      }
+    },
+    {
+      "afterMs": 60,
+      "event": {
+        "v": 2, "seq": 9, "at": 580, "sessionId": "sample-session", "type": "run.systemPrompt",
+        "data": {
+          "runId": "sample-run-2",
+          "text": "You are Pi, a coding agent. Inspect relevant files before running commands. Use the smallest sufficient validation and report tool results accurately."
+        }
+      }
+    },
+    {
+      "afterMs": 70,
+      "event": {
+        "v": 2, "seq": 10, "at": 650, "sessionId": "sample-session", "type": "message.completed",
+        "data": { "id": "sample-user-2", "role": "user", "text": "Inspect the package scripts, run validation, and explain what you find." }
+      }
+    },
+    {
+      "afterMs": 80,
+      "event": {
+        "v": 2, "seq": 11, "at": 730, "sessionId": "sample-session", "type": "message.started",
+        "data": { "id": "sample-agent-2", "role": "assistant", "runId": "sample-run-2" }
+      }
+    },
+    {
+      "afterMs": 80,
+      "event": {
+        "v": 2, "seq": 12, "at": 810, "sessionId": "sample-session", "type": "message.thinking.delta",
+        "data": { "id": "sample-agent-2", "text": "I should inspect the package metadata before choosing validation commands.\n" }
+      }
+    },
+    {
+      "afterMs": 70,
+      "event": {
+        "v": 2, "seq": 13, "at": 880, "sessionId": "sample-session", "type": "message.thinking.delta",
+        "data": { "id": "sample-agent-2", "text": "Then I can run the smallest checks that cover TypeScript and server behavior." }
+      }
+    },
+    {
+      "afterMs": 80,
+      "event": {
+        "v": 2, "seq": 14, "at": 960, "sessionId": "sample-session", "type": "tool.started",
+        "data": { "id": "sample-tool-1", "name": "read", "args": { "path": "package.json", "section": "scripts" } }
+      }
+    },
+    {
+      "afterMs": 120,
+      "event": {
+        "v": 2, "seq": 15, "at": 1080, "sessionId": "sample-session", "type": "tool.completed",
+        "data": {
+          "id": "sample-tool-1", "name": "read", "isError": false, "durationMs": 42,
+          "result": { "scripts": { "check": "tsc --noEmit", "test": "tsx --test test/*.test.ts", "pack:dry": "npm pack --dry-run" } }
+        }
+      }
+    },
+    {
+      "afterMs": 60,
+      "event": {
+        "v": 2, "seq": 16, "at": 1140, "sessionId": "sample-session", "type": "tool.started",
+        "data": { "id": "sample-tool-2", "name": "check", "args": { "commands": ["pnpm check", "pnpm test"] } }
+      }
+    },
+    {
+      "afterMs": 160,
+      "event": {
+        "v": 2, "seq": 17, "at": 1300, "sessionId": "sample-session", "type": "tool.completed",
+        "data": {
+          "id": "sample-tool-2", "name": "check", "isError": false, "durationMs": 1250,
+          "result": "TypeScript check passed.\n9 tests passed.\nNo failures found."
+        }
+      }
+    },
+    {
+      "afterMs": 80,
+      "event": {
+        "v": 2, "seq": 18, "at": 1380, "sessionId": "sample-session", "type": "message.completed",
+        "data": {
+          "id": "sample-agent-2", "role": "assistant",
+          "text": "I inspected the scripts and ran the two relevant checks.",
+          "thinking": "I should inspect the package metadata before choosing validation commands.\nThen I can run the smallest checks that cover TypeScript and server behavior."
+        }
+      }
+    },
+    {
+      "afterMs": 60,
+      "event": {
+        "v": 2, "seq": 19, "at": 1440, "sessionId": "sample-session", "type": "turn.usage",
+        "data": {
+          "id": "sample-turn-2", "messageId": "sample-agent-2", "runId": "sample-run-2",
+          "usage": { "inputTokens": 2800, "outputTokens": 90, "reasoningTokens": 110, "cacheReadTokens": 600, "cacheWriteTokens": 0, "cost": 0.0054 },
+          "contextSnapshot": { "inputTokens": 2800, "contextWindow": 128000 }
+        }
+      }
+    },
+    {
+      "afterMs": 80,
+      "event": {
+        "v": 2, "seq": 20, "at": 1520, "sessionId": "sample-session", "type": "message.started",
+        "data": { "id": "sample-agent-3", "role": "assistant", "runId": "sample-run-2" }
+      }
+    },
+    {
+      "afterMs": 80,
+      "event": {
+        "v": 2, "seq": 21, "at": 1600, "sessionId": "sample-session", "type": "message.delta",
+        "data": { "id": "sample-agent-3", "text": "Validation completed successfully. " }
+      }
+    },
+    {
+      "afterMs": 80,
+      "event": {
+        "v": 2, "seq": 22, "at": 1680, "sessionId": "sample-session", "type": "message.delta",
+        "data": { "id": "sample-agent-3", "text": "The package has a focused check, test, and dry-pack workflow." }
+      }
+    },
+    {
+      "afterMs": 80,
+      "event": {
+        "v": 2, "seq": 23, "at": 1760, "sessionId": "sample-session", "type": "message.completed",
+        "data": {
+          "id": "sample-agent-3", "role": "assistant",
+          "text": "Validation completed successfully. The package has a focused `check`, `test`, and `pack:dry` workflow. See the [terminology guide](https://github.com/ecarlisle/pi-under-glass/blob/main/docs/terms.md) for the UI vocabulary."
+        }
+      }
+    },
+    {
+      "afterMs": 60,
+      "event": {
+        "v": 2, "seq": 24, "at": 1820, "sessionId": "sample-session", "type": "turn.usage",
+        "data": {
+          "id": "sample-turn-3", "messageId": "sample-agent-3", "runId": "sample-run-2",
+          "usage": { "inputTokens": 3600, "outputTokens": 260, "reasoningTokens": 40, "cacheReadTokens": 1400, "cacheWriteTokens": 240, "cost": 0.0086 },
+          "contextSnapshot": { "inputTokens": 3600, "contextWindow": 128000 }
+        }
+      }
+    },
+    {
+      "afterMs": 60,
+      "event": {
+        "v": 2, "seq": 25, "at": 1880, "sessionId": "sample-session", "type": "run.completed",
+        "data": {
+          "id": "sample-run-2", "modelRequests": 2,
+          "usage": { "inputTokens": 6400, "outputTokens": 350, "reasoningTokens": 150, "cacheReadTokens": 2000, "cacheWriteTokens": 240, "cost": 0.014 }
+        }
+      }
+    },
+    {
+      "afterMs": 60,
+      "event": {
+        "v": 2, "seq": 26, "at": 1940, "sessionId": "sample-session", "type": "metrics",
+        "data": {
+          "modelRequests": 3,
+          "usage": { "inputTokens": 8200, "outputTokens": 470, "reasoningTokens": 150, "cacheReadTokens": 2000, "cacheWriteTokens": 360, "cost": 0.0172 },
+          "tools": 2,
+          "latestContext": { "inputTokens": 3600, "contextWindow": 128000 }
+        }
+      }
+    },
+    {
+      "afterMs": 60,
+      "event": {
+        "v": 2, "seq": 27, "at": 2000, "sessionId": "sample-session", "type": "run.systemPrompt",
+        "data": {
+          "runId": "sample-run-3",
+          "text": "You are Pi, a coding agent. Treat failures as evidence, recover with safe supported commands, and explain the final state clearly."
+        }
+      }
+    },
+    {
+      "afterMs": 70,
+      "event": {
+        "v": 2, "seq": 28, "at": 2070, "sessionId": "sample-session", "type": "message.completed",
+        "data": { "id": "sample-user-3", "role": "user", "text": "Run the missing-suite check and recover cleanly if it fails." }
+      }
+    },
+    {
+      "afterMs": 80,
+      "event": {
+        "v": 2, "seq": 29, "at": 2150, "sessionId": "sample-session", "type": "message.started",
+        "data": { "id": "sample-agent-4", "role": "assistant", "runId": "sample-run-3" }
+      }
+    },
+    {
+      "afterMs": 80,
+      "event": {
+        "v": 2, "seq": 30, "at": 2230, "sessionId": "sample-session", "type": "message.thinking.delta",
+        "data": { "id": "sample-agent-4", "text": "This command may fail because the requested suite does not exist.\n" }
+      }
+    },
+    {
+      "afterMs": 80,
+      "event": {
+        "v": 2, "seq": 31, "at": 2310, "sessionId": "sample-session", "type": "message.thinking.delta",
+        "data": { "id": "sample-agent-4", "text": "If so, I should report the exact failure and use the normal suite instead." }
+      }
+    },
+    {
+      "afterMs": 80,
+      "event": {
+        "v": 2, "seq": 32, "at": 2390, "sessionId": "sample-session", "type": "tool.started",
+        "data": { "id": "sample-tool-3", "name": "check", "args": { "command": "pnpm test --filter missing-suite", "timeoutMs": 30000 } }
+      }
+    },
+    {
+      "afterMs": 180,
+      "event": {
+        "v": 2, "seq": 33, "at": 2570, "sessionId": "sample-session", "type": "tool.completed",
+        "data": {
+          "id": "sample-tool-3", "name": "check", "isError": true, "durationMs": 2300,
+          "result": { "exitCode": 1, "message": "No tests matched missing-suite.", "recovery": "Run pnpm test without the unsupported filter." }
+        }
+      }
+    },
+    {
+      "afterMs": 80,
+      "event": {
+        "v": 2, "seq": 34, "at": 2650, "sessionId": "sample-session", "type": "message.completed",
+        "data": {
+          "id": "sample-agent-4", "role": "assistant",
+          "text": "The filtered command failed because that suite does not exist. I will use the normal test command instead.",
+          "thinking": "This command may fail because the requested suite does not exist.\nIf so, I should report the exact failure and use the normal suite instead."
+        }
+      }
+    },
+    {
+      "afterMs": 60,
+      "event": {
+        "v": 2, "seq": 35, "at": 2710, "sessionId": "sample-session", "type": "turn.usage",
+        "data": {
+          "id": "sample-turn-4", "messageId": "sample-agent-4", "runId": "sample-run-3",
+          "usage": { "inputTokens": 4200, "outputTokens": 85, "reasoningTokens": 160, "cacheReadTokens": 1800, "cacheWriteTokens": 0, "cost": 0.0098 },
+          "contextSnapshot": { "inputTokens": 4200 }
+        }
+      }
+    },
+    {
+      "afterMs": 80,
+      "event": {
+        "v": 2, "seq": 36, "at": 2790, "sessionId": "sample-session", "type": "message.started",
+        "data": { "id": "sample-agent-5", "role": "assistant", "runId": "sample-run-3" }
+      }
+    },
+    {
+      "afterMs": 70,
+      "event": {
+        "v": 2, "seq": 37, "at": 2860, "sessionId": "sample-session", "type": "message.thinking.delta",
+        "data": { "id": "sample-agent-5", "text": "The earlier full test run already established the recovery path." }
+      }
+    },
+    {
+      "afterMs": 80,
+      "event": {
+        "v": 2, "seq": 38, "at": 2940, "sessionId": "sample-session", "type": "message.delta",
+        "data": { "id": "sample-agent-5", "text": "Recovery succeeded: " }
+      }
+    },
+    {
+      "afterMs": 80,
+      "event": {
+        "v": 2, "seq": 39, "at": 3020, "sessionId": "sample-session", "type": "message.delta",
+        "data": { "id": "sample-agent-5", "text": "the supported suite remains green." }
+      }
+    },
+    {
+      "afterMs": 80,
+      "event": {
+        "v": 2, "seq": 40, "at": 3100, "sessionId": "sample-session", "type": "message.completed",
+        "data": {
+          "id": "sample-agent-5", "role": "assistant",
+          "text": "Recovery succeeded: the supported suite remains green. The failed tool is retained above for debugging context.",
+          "thinking": "The earlier full test run already established the recovery path."
+        }
+      }
+    },
+    {
+      "afterMs": 60,
+      "event": {
+        "v": 2, "seq": 41, "at": 3160, "sessionId": "sample-session", "type": "turn.usage",
+        "data": {
+          "id": "sample-turn-5", "messageId": "sample-agent-5", "runId": "sample-run-3",
+          "usage": { "inputTokens": 4600, "outputTokens": 310, "reasoningTokens": 70, "cacheReadTokens": 2200, "cacheWriteTokens": 320, "cost": 0.0114 },
+          "contextSnapshot": { "inputTokens": 4600, "contextWindow": 128000 }
+        }
+      }
+    },
+    {
+      "afterMs": 60,
+      "event": {
+        "v": 2, "seq": 42, "at": 3220, "sessionId": "sample-session", "type": "run.completed",
+        "data": {
+          "id": "sample-run-3", "modelRequests": 2,
+          "usage": { "inputTokens": 8800, "outputTokens": 395, "reasoningTokens": 230, "cacheReadTokens": 4000, "cacheWriteTokens": 320, "cost": 0.0212 }
+        }
+      }
+    },
+    {
+      "afterMs": 60,
+      "event": {
+        "v": 2, "seq": 43, "at": 3280, "sessionId": "sample-session", "type": "metrics",
+        "data": {
+          "modelRequests": 5,
+          "usage": { "inputTokens": 17000, "outputTokens": 865, "reasoningTokens": 380, "cacheReadTokens": 6000, "cacheWriteTokens": 680, "cost": 0.0384 },
+          "tools": 3,
+          "latestContext": { "inputTokens": 4600, "contextWindow": 128000 }
         }
       }
     }

@@ -26,7 +26,14 @@ test("serves the viewer and authenticates WebSocket clients", async (context) =>
 	const authorized = await fetch(server.url);
 	assert.equal(authorized.status, 200);
 	assert.match(authorized.headers.get("content-security-policy") ?? "", /connect-src 'self'/);
-	assert.match(await authorized.text(), /Pi Under Glass/);
+	const viewer = await authorized.text();
+	assert.match(viewer, /Pi Under Glass/);
+	assert.match(viewer, /Show usage details/);
+	assert.match(viewer, /Show tool input/);
+	assert.match(viewer, /Show tool results/);
+	assert.match(viewer, /Show timestamps/);
+	assert.match(viewer, /Show thinking/);
+	assert.match(viewer, /Show system prompt/);
 
 	const unauthorized = await fetch(`http://${server.host}:${server.port}/`);
 	assert.equal(unauthorized.status, 401);
@@ -60,7 +67,20 @@ test("serves a debug fixture only when explicitly enabled and authenticated", as
 	const fixture = await fetch(`http://${server.host}:${server.port}/debug-fixture?token=${token}`);
 	assert.equal(fixture.status, 200);
 	assert.match(fixture.headers.get("content-type") ?? "", /application\/json/);
-	assert.equal((await fixture.json()).hello.type, "hello");
+	const sample = await fixture.json();
+	assert.equal(sample.hello.type, "hello");
+	assert.equal(sample.events.filter(({ event }: { event: { type: string } }) => event.type === "turn.usage").length, 5);
+	assert.equal(sample.events.filter(({ event }: { event: { type: string } }) => event.type === "run.completed").length, 3);
+	assert.equal(sample.events.filter(({ event }: { event: { type: string } }) => event.type === "tool.started").length, 3);
+	assert.equal(sample.events.filter(({ event }: { event: { type: string } }) => event.type === "run.systemPrompt").length, 3);
+	assert.ok(sample.events.some(({ event }: { event: { type: string } }) => event.type === "message.thinking.delta"));
+	assert.ok(
+		sample.events.some(
+			({ event }: { event: { type: string; data?: { isError?: boolean } } }) =>
+				event.type === "tool.completed" && event.data?.isError,
+		),
+	);
+	assert.equal(sample.events.at(-1).event.data.modelRequests, 5);
 
 	const unauthorized = await fetch(`http://${server.host}:${server.port}/debug-fixture`);
 	assert.equal(unauthorized.status, 401);
