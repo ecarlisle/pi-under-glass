@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>Pi Under Glass</title>
+		<link rel="stylesheet" href="/styles.css" />
+	</head>
+	<body>
+		<main>
+			<header>
+				<div class="header-main">
+					<h1>Pi Under Glass</h1>
+					<span class="status" id="status">Connecting</span>
+				</div>
+				<section class="session-summary" aria-labelledby="session-heading">
+					<h2 id="session-heading">Session usage</h2>
+					<div class="metrics">
+						<div><span>Elapsed</span><strong id="elapsed">00:00</strong></div>
+						<div><span>Model requests</span><strong id="requests">0</strong></div>
+						<div data-metric="input"><span>Total input processed</span><strong id="input">0</strong></div>
+						<div data-metric="output"><span>Output tokens</span><strong id="output">0</strong></div>
+						<div data-metric="reasoning" hidden><span>Reasoning tokens</span><strong id="reasoning"></strong></div>
+						<div data-metric="cache-read" hidden><span>Cache read</span><strong id="cache-read"></strong></div>
+						<div data-metric="cache-write" hidden><span>Cache write</span><strong id="cache-write"></strong></div>
+						<div data-metric="cost" hidden><span>Cost</span><strong id="cost"></strong></div>
+						<div><span>Tools</span><strong id="tools">0</strong></div>
+					</div>
+					<div class="context-snapshot" id="context-snapshot" hidden>
+						<strong>Latest request context snapshot</strong>
+						<span id="context-value"></span>
+					</div>
+				</section>
+			</header>
+
+			<section class="transcript">
+				<h2>Live transcript</h2>
+				<div id="events">
+					<p class="empty" id="empty">Send Pi a message to see live activity.</p>
+				</div>
+			</section>
+		</main>
+		<script type="module" src="/app.js"></script>
+	</body>
+</html>
