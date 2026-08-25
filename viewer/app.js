@@ -190,7 +190,7 @@ function renderSystemPrompt(runId, group) {
 	const details = document.createElement("details");
 	details.className = "message-block system-prompt-block";
 	const summary = document.createElement("summary");
-	summary.append("System prompt", createTimestamp(prompt.at));
+	summary.append(createTypeIcon("system-prompt"), "System prompt", createTimestamp(prompt.at));
 	const content = document.createElement("div");
 	content.className = "system-prompt-content";
 	content.textContent = prompt.text;
@@ -242,7 +242,7 @@ function handleTurnUsage(event) {
 	const group = message?.closest(".message-group") ?? lastAgentGroup ?? createSpeakerGroup("assistant");
 	let content = turnUsageRows.get(event.data.id);
 	if (!content) {
-		content = createBlock(group, "Turn usage", "", "usage-block", event.at);
+		content = createBlock(group, "Turn usage", "", "usage-block", event.at, "usage");
 		turnUsageRows.set(event.data.id, content);
 	}
 	content.textContent = formatUsage(event.data.usage);
@@ -254,7 +254,7 @@ function handleRunCompleted(event) {
 	const group = lastAgentGroup ?? createSpeakerGroup("assistant");
 	let content = runUsageRows.get(event.data.id);
 	if (!content) {
-		content = createBlock(group, "Agent run usage", "", "usage-block", event.at);
+		content = createBlock(group, "Agent run usage", "", "usage-block", event.at, "usage");
 		runUsageRows.set(event.data.id, content);
 	}
 	const requestLabel = event.data.modelRequests === 1 ? "1 model request" : `${event.data.modelRequests} model requests`;
@@ -305,7 +305,7 @@ function createToolRow(group, name, at) {
 	summary.className = "tool-summary";
 	const title = document.createElement("span");
 	title.className = "tool-name";
-	title.textContent = `Tool · ${name}`;
+	title.append(createTypeIcon("tool"), `Tool · ${name}`);
 	const status = document.createElement("span");
 	status.className = "tool-status";
 	summary.append(title, status, createTimestamp(at));
@@ -357,7 +357,7 @@ function ensureThinkingRow(messageId) {
 		details.className = "thinking-block";
 		details.open = elements.expandThinking.checked;
 		const summary = document.createElement("summary");
-		summary.textContent = "Thinking";
+		summary.append(createTypeIcon("thinking"), "Thinking");
 		const body = document.createElement("div");
 		body.className = "thinking-content";
 		details.append(summary, body);
@@ -370,7 +370,14 @@ function ensureThinkingRow(messageId) {
 
 function createMessage(id, role, text, at) {
 	const group = createSpeakerGroup(role);
-	const content = createBlock(group, role === "assistant" ? "Text" : "", text, "", at);
+	const content = createBlock(
+		group,
+		role === "assistant" ? "Text" : "",
+		text,
+		"",
+		at,
+		role === "assistant" ? "text" : undefined,
+	);
 	messages.set(id, content);
 	return content;
 }
@@ -408,13 +415,57 @@ function createRoleIcon(role) {
 	return svg;
 }
 
-function createBlock(group, type, text, className = "", at) {
+const TYPE_ICON_PATHS = {
+	text: {
+		mode: "stroke",
+		d: "M2.5 3.5h11a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H7l-2.5 2.5v-2.5h-2a1 1 0 0 1-1-1v-6a1 1 0 0 1 1-1Z",
+	},
+	tool: {
+		mode: "fill",
+		d: "M9.8 4.2a.667.667 0 0 0 0 .933l1.067 1.067a.667.667 0 0 0 .933 0l2.513-2.513a4 4 0 0 1-5.293 5.293l-4.607 4.607a1.413 1.413 0 0 1-2-2l4.607-4.607a4 4 0 0 1 5.293-5.293l-2.507 2.507Z",
+	},
+	"system-prompt": {
+		mode: "stroke",
+		d: "M4 2.5h8a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1ZM5.5 6h5M5.5 8.5h5M5.5 11h3",
+	},
+	usage: { mode: "fill", d: "M3 13V9h2v4H3Zm4 0V5h2v8H7Zm4 0V7h2v6h-2Z" },
+};
+
+/** Small inline SVG glyph distinguishing a content type (text/tool/thinking/system-prompt/usage). */
+function createTypeIcon(kind) {
+	const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+	svg.setAttribute("viewBox", "0 0 16 16");
+	svg.setAttribute("aria-hidden", "true");
+	svg.setAttribute("focusable", "false");
+	if (kind === "thinking") {
+		svg.classList.add("type-icon", "type-icon--fill");
+		for (const cx of [3.5, 8, 12.5]) {
+			const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+			circle.setAttribute("cx", String(cx));
+			circle.setAttribute("cy", "8");
+			circle.setAttribute("r", "1.3");
+			svg.append(circle);
+		}
+		return svg;
+	}
+	const def = TYPE_ICON_PATHS[kind];
+	if (!def) return undefined;
+	svg.classList.add("type-icon", `type-icon--${def.mode}`);
+	const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+	path.setAttribute("d", def.d);
+	svg.append(path);
+	return svg;
+}
+
+function createBlock(group, type, text, className = "", at, iconKind) {
 	const block = document.createElement("div");
 	block.className = `message-block ${className}`.trim();
 	if (type) {
 		const typeLabel = document.createElement("div");
 		typeLabel.className = "message-type";
-		typeLabel.textContent = type;
+		const icon = iconKind && createTypeIcon(iconKind);
+		if (icon) typeLabel.append(icon);
+		typeLabel.append(type);
 		block.append(typeLabel);
 	}
 	block.append(createTimestamp(at));
