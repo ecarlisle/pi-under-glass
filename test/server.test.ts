@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { once } from "node:events";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { WebSocket } from "ws";
 
@@ -15,6 +16,8 @@ const hello = () => ({
 	metrics: { modelRequests: 0, usage: {}, tools: 0 },
 });
 
+const debugFixturePath = fileURLToPath(new URL("../fixtures/sample-session.json", import.meta.url));
+
 test("serves the viewer and authenticates WebSocket clients", async (context) => {
 	const token = "test-token";
 	const server = await startViewerServer({ token, hello });
@@ -22,6 +25,7 @@ test("serves the viewer and authenticates WebSocket clients", async (context) =>
 
 	const authorized = await fetch(server.url);
 	assert.equal(authorized.status, 200);
+	assert.match(authorized.headers.get("content-security-policy") ?? "", /connect-src 'self'/);
 	assert.match(await authorized.text(), /Pi Under Glass/);
 
 	const unauthorized = await fetch(`http://${server.host}:${server.port}/`);
@@ -46,6 +50,25 @@ test("rejects a WebSocket client with the wrong token", async (context) => {
 	context.after(() => socket.close());
 	const [error] = await once(socket, "error");
 	assert.match(String(error), /401/);
+});
+
+test("serves a debug fixture only when explicitly enabled and authenticated", async (context) => {
+	const token = "debug-token";
+	const server = await startViewerServer({ token, hello, debugFixturePath });
+	context.after(() => server.close());
+
+	const fixture = await fetch(`http://${server.host}:${server.port}/debug-fixture?token=${token}`);
+	assert.equal(fixture.status, 200);
+	assert.match(fixture.headers.get("content-type") ?? "", /application\/json/);
+	assert.equal((await fixture.json()).hello.type, "hello");
+
+	const unauthorized = await fetch(`http://${server.host}:${server.port}/debug-fixture`);
+	assert.equal(unauthorized.status, 401);
+
+	const liveServer = await startViewerServer({ token: "live", hello });
+	context.after(() => liveServer.close());
+	const unavailable = await fetch(`http://${liveServer.host}:${liveServer.port}/debug-fixture?token=live`);
+	assert.equal(unavailable.status, 404);
 });
 
 test("forwards tool args and results to viewers", async (context) => {

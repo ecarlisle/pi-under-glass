@@ -9,9 +9,13 @@ const elements = {
 	contextValue: document.querySelector("#context-value"),
 	events: document.querySelector("#events"),
 	empty: document.querySelector("#empty"),
+	expandThinking: document.querySelector("#expand-thinking"),
+	expandTools: document.querySelector("#expand-tools"),
 };
 
-const token = new URLSearchParams(location.search).get("token");
+const parameters = new URLSearchParams(location.search);
+const token = parameters.get("token");
+const debug = parameters.get("debug") === "1";
 const messages = new Map();
 const thinkingRows = new Map();
 const toolRows = new Map();
@@ -20,6 +24,17 @@ const runUsageRows = new Map();
 let startedAt = Date.now();
 let retryTimer;
 let lastAgentGroup;
+
+elements.expandThinking.addEventListener("change", () => {
+	setDetailsOpen(".thinking-block", elements.expandThinking.checked);
+});
+elements.expandTools.addEventListener("change", () => {
+	setDetailsOpen(".tool-block", elements.expandTools.checked);
+});
+
+function setDetailsOpen(selector, open) {
+	for (const details of document.querySelectorAll(selector)) details.open = open;
+}
 
 function connect() {
 	if (!token) return setStatus("Missing token", false);
@@ -38,6 +53,27 @@ function connect() {
 		clearTimeout(retryTimer);
 		retryTimer = setTimeout(connect, 1200);
 	});
+}
+
+async function playDebugFixture() {
+	if (!token) return setStatus("Missing token", false);
+	setStatus("Sample data", false);
+	elements.status.classList.add("sample");
+	try {
+		const response = await fetch(`/debug-fixture?token=${encodeURIComponent(token)}`);
+		if (!response.ok) throw new Error("fixture unavailable");
+		const fixture = await response.json();
+		if (!fixture?.hello || !Array.isArray(fixture.events)) throw new Error("invalid fixture");
+		handle({ ...fixture.hello, startedAt: Date.now() });
+		for (const item of fixture.events) {
+			const delay = Number.isFinite(item.afterMs) ? Math.max(0, item.afterMs) : 0;
+			if (delay > 0) await new Promise((resolve) => setTimeout(resolve, delay));
+			handle(item.event);
+		}
+	} catch {
+		setStatus("Sample unavailable", false);
+		elements.status.classList.remove("sample");
+	}
 }
 
 function handle(event) {
@@ -183,6 +219,7 @@ function handleToolCompleted(event) {
 function createToolRow(group, name) {
 	const row = document.createElement("details");
 	row.className = "message-block tool-block";
+	row.open = elements.expandTools.checked;
 	const summary = document.createElement("summary");
 	summary.className = "tool-summary";
 	const title = document.createElement("span");
@@ -237,6 +274,7 @@ function ensureThinkingRow(messageId) {
 	if (!row) {
 		const details = document.createElement("details");
 		details.className = "thinking-block";
+		details.open = elements.expandThinking.checked;
 		const summary = document.createElement("summary");
 		summary.textContent = "Thinking";
 		const body = document.createElement("div");
@@ -262,13 +300,31 @@ function createSpeakerGroup(role) {
 	row.className = `event ${role}`;
 	const label = document.createElement("div");
 	label.className = "label";
-	label.textContent = role === "user" ? "User" : "Agent";
+	label.append(createRoleIcon(role), role === "user" ? "User" : "Agent");
 	const group = document.createElement("div");
 	group.className = "message-group";
 	row.append(label, group);
 	elements.events.append(row);
 	lastAgentGroup = role === "assistant" ? group : undefined;
 	return group;
+}
+
+function createRoleIcon(role) {
+	const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+	svg.classList.add("role-icon");
+	svg.setAttribute("viewBox", "0 0 16 16");
+	svg.setAttribute("aria-hidden", "true");
+	svg.setAttribute("focusable", "false");
+
+	const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+	path.setAttribute(
+		"d",
+		role === "user"
+			? "M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm-5.5 6c.4-2.7 2.2-4 5.5-4s5.1 1.3 5.5 4"
+			: "M8 1.5c.6 3.8 2.7 5.9 6.5 6.5-3.8.6-5.9 2.7-6.5 6.5C7.4 10.7 5.3 8.6 1.5 8 5.3 7.4 7.4 5.3 8 1.5Z",
+	);
+	svg.append(path);
+	return svg;
 }
 
 function createBlock(group, type, text, className = "") {
@@ -416,4 +472,5 @@ setInterval(() => {
 	elements.elapsed.textContent = `${minutes}:${(seconds % 60).toString().padStart(2, "0")}`;
 }, 1000);
 
-connect();
+if (debug) void playDebugFixture();
+else connect();

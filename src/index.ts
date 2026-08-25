@@ -1,5 +1,6 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import process from "node:process";
+import { fileURLToPath } from "node:url";
 
 import {
 	createEvent,
@@ -17,6 +18,8 @@ import {
 	type ProviderUsage,
 	type UsageAccumulator,
 } from "./usage.js";
+
+const DEBUG_FIXTURE_PATH = fileURLToPath(new URL("../fixtures/sample-session.json", import.meta.url));
 
 type Role = "user" | "assistant" | "toolResult";
 
@@ -116,6 +119,7 @@ export default function piUnderGlass(pi: PiApi): void {
 			starting = startViewerServer({
 				token,
 				port: configuredPort(),
+				debugFixturePath: DEBUG_FIXTURE_PATH,
 				hello: () => ({
 					v: PROTOCOL_VERSION,
 					type: "hello",
@@ -263,14 +267,16 @@ export default function piUnderGlass(pi: PiApi): void {
 	});
 
 	pi.registerCommand("underglass", {
-		description: "Open the local Pi Under Glass viewer",
-		handler: async (_args, context) => {
+		description: "Open Pi Under Glass (add 'debug' for sample data)",
+		handler: async (args, context) => {
 			try {
 				const current = await ensureServer(context);
-				context.ui.notify(`Pi Under Glass: ${current.url}`, "info");
+				const debug = args.trim() === "debug";
+				const url = debug ? `${current.url}&debug=1` : current.url;
+				context.ui.notify(`Pi Under Glass${debug ? " sample data" : ""}: ${url}`, "info");
 				if (context.mode === "tui") {
-					const { command, args } = browserCommand(current.url);
-					const result = await pi.exec(command, args);
+					const browser = browserCommand(url);
+					const result = await pi.exec(browser.command, browser.args);
 					if (result.code !== 0) {
 						context.ui.notify("Could not open a browser; use the URL shown above.", "warning");
 					}

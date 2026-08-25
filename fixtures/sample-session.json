@@ -1,0 +1,237 @@
+{
+  "hello": {
+    "v": 2,
+    "type": "hello",
+    "sessionId": "sample-session",
+    "startedAt": 0,
+    "cwd": "",
+    "metrics": {
+      "modelRequests": 0,
+      "usage": {},
+      "tools": 0
+    }
+  },
+  "events": [
+    {
+      "afterMs": 100,
+      "event": {
+        "v": 2,
+        "seq": 1,
+        "at": 100,
+        "sessionId": "sample-session",
+        "type": "message.completed",
+        "data": {
+          "id": "sample-user-1",
+          "role": "user",
+          "text": "Inspect the project and report its current status."
+        }
+      }
+    },
+    {
+      "afterMs": 250,
+      "event": {
+        "v": 2,
+        "seq": 2,
+        "at": 350,
+        "sessionId": "sample-session",
+        "type": "message.started",
+        "data": {
+          "id": "sample-agent-1",
+          "role": "assistant"
+        }
+      }
+    },
+    {
+      "afterMs": 200,
+      "event": {
+        "v": 2,
+        "seq": 3,
+        "at": 550,
+        "sessionId": "sample-session",
+        "type": "message.thinking.delta",
+        "data": {
+          "id": "sample-agent-1",
+          "text": "First, inspect the repository structure and active changes.\n"
+        }
+      }
+    },
+    {
+      "afterMs": 150,
+      "event": {
+        "v": 2,
+        "seq": 4,
+        "at": 700,
+        "sessionId": "sample-session",
+        "type": "message.thinking.delta",
+        "data": {
+          "id": "sample-agent-1",
+          "text": "Next, run targeted checks and compare the results with expected behavior.\n"
+        }
+      }
+    },
+    {
+      "afterMs": 150,
+      "event": {
+        "v": 2,
+        "seq": 5,
+        "at": 850,
+        "sessionId": "sample-session",
+        "type": "message.thinking.delta",
+        "data": {
+          "id": "sample-agent-1",
+          "text": "Finally, confirm the viewer connection and summarize any remaining risk."
+        }
+      }
+    },
+    {
+      "afterMs": 250,
+      "event": {
+        "v": 2,
+        "seq": 6,
+        "at": 1100,
+        "sessionId": "sample-session",
+        "type": "tool.started",
+        "data": {
+          "id": "sample-tool-1",
+          "name": "check",
+          "args": {
+            "command": "pnpm test"
+          }
+        }
+      }
+    },
+    {
+      "afterMs": 350,
+      "event": {
+        "v": 2,
+        "seq": 7,
+        "at": 1450,
+        "sessionId": "sample-session",
+        "type": "tool.completed",
+        "data": {
+          "id": "sample-tool-1",
+          "name": "check",
+          "isError": false,
+          "durationMs": 184,
+          "result": "All tests passed."
+        }
+      }
+    },
+    {
+      "afterMs": 200,
+      "event": {
+        "v": 2,
+        "seq": 8,
+        "at": 1650,
+        "sessionId": "sample-session",
+        "type": "message.delta",
+        "data": {
+          "id": "sample-agent-1",
+          "text": "The project is healthy. "
+        }
+      }
+    },
+    {
+      "afterMs": 200,
+      "event": {
+        "v": 2,
+        "seq": 9,
+        "at": 1850,
+        "sessionId": "sample-session",
+        "type": "message.delta",
+        "data": {
+          "id": "sample-agent-1",
+          "text": "All checks pass and the viewer is connected."
+        }
+      }
+    },
+    {
+      "afterMs": 150,
+      "event": {
+        "v": 2,
+        "seq": 10,
+        "at": 2000,
+        "sessionId": "sample-session",
+        "type": "message.completed",
+        "data": {
+          "id": "sample-agent-1",
+          "role": "assistant",
+          "text": "The project is healthy. All checks pass and the viewer is connected.",
+          "thinking": "First, inspect the repository structure and active changes.\nNext, run targeted checks and compare the results with expected behavior.\nFinally, confirm the viewer connection and summarize any remaining risk."
+        }
+      }
+    },
+    {
+      "afterMs": 100,
+      "event": {
+        "v": 2,
+        "seq": 11,
+        "at": 2100,
+        "sessionId": "sample-session",
+        "type": "turn.usage",
+        "data": {
+          "id": "sample-turn-1",
+          "messageId": "sample-agent-1",
+          "runId": "sample-run-1",
+          "usage": {
+            "inputTokens": 7200,
+            "outputTokens": 410,
+            "reasoningTokens": 120,
+            "cacheReadTokens": 3200,
+            "cost": 0.021
+          },
+          "contextSnapshot": {
+            "inputTokens": 7200,
+            "contextWindow": 128000
+          }
+        }
+      }
+    },
+    {
+      "afterMs": 100,
+      "event": {
+        "v": 2,
+        "seq": 12,
+        "at": 2200,
+        "sessionId": "sample-session",
+        "type": "run.completed",
+        "data": {
+          "id": "sample-run-1",
+          "modelRequests": 1,
+          "usage": {
+            "inputTokens": 7200,
+            "outputTokens": 410,
+            "reasoningTokens": 120,
+            "cacheReadTokens": 3200,
+            "cost": 0.021
+          }
+        }
+      }
+    },
+    {
+      "afterMs": 100,
+      "event": {
+        "v": 2,
+        "seq": 13,
+        "at": 2300,
+        "sessionId": "sample-session",
+        "type": "metrics",
+        "data": {
+          "modelRequests": 1,
+          "usage": {
+            "inputTokens": 7200,
+            "outputTokens": 410,
+            "reasoningTokens": 120,
+            "cacheReadTokens": 3200,
+            "cost": 0.021
+          },
+          "tools": 1,
+          "latestContext": {
+            "inputTokens": 7200,
+            "contextWindow": 128000
+          }
+        }
+      }
+    }
+  ]
+}

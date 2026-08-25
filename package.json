@@ -4,6 +4,7 @@
   "description": "A tiny local browser view for Pi agent activity",
   "type": "module",
   "files": [
+    "fixtures",
     "src",
     "viewer",
     "README.md",

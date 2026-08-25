@@ -1,19 +1,23 @@
 # Terminology
 
-- **Session:** The whole ongoing conversation. Session usage rolls up all completed model requests.
-- **Agent run:** All Agent turns caused by one User message.
-- **Turn:** One assistant model request and response, including any tool activity it triggers. A completed turn is the authoritative unit for provider-reported usage.
-- **Message:** One item sent by a participant.
-- **Role:** Who produced a message: User, Agent, System, or Tool.
-- **Content type:** What appears within a message or turn, such as Text, Tool call, Tool result, or Reasoning.
-- **Tool call:** An Agent request to run a named tool with specific input.
-- **Tool result:** The outcome returned after a tool call, including success, failure, or output.
-- **Event:** A live update emitted while a turn runs.
+- **Session:** The conversation state belonging to one Pi session, including its messages and agent activity. Session usage rolls up all completed model invocations.
+- **Agent run:** One execution of Pi's agent loop initiated by a User request. An Agent run can contain multiple Turns and tool calls.
+- **Turn:** One Pi model invocation within an Agent run: the model request and Agent response, plus any associated tool calls and results. A completed Turn is the authoritative unit for provider-reported usage.
+- **Model invocation:** One request to a model provider and its response. In Pi, this is normally the accounting unit for one Turn.
+- **Message:** One conversation item with a Role and one or more content blocks.
+- **Role:** The source or function assigned to a Message. Pi uses `user`, `assistant`, and `toolResult`; the viewer labels `user` as User and `assistant` as Agent.
+- **Content type:** The kind of content within a Message, such as Text, Thinking, Tool call, or Tool result as presented by the viewer.
+- **Tool call:** An Agent request to invoke a named tool with specific input.
+- **Tool result:** The outcome associated with a Tool call, including output, failure, or status.
+- **Thinking:** Intermediate model content exposed by Pi as a `thinking` content block. It is distinct from provider-reported Reasoning tokens.
+- **Reasoning tokens:** A provider-reported usage category. It does not necessarily correspond to the visible Thinking content.
+- **Event:** A timestamped lifecycle or streaming update about a Session, Agent run, Turn, Message, or tool execution.
+- **Context snapshot:** The latest model invocation's input-token usage compared with the model's context-window capacity. It is not cumulative usage.
 
 ## UI hierarchy
 
-User and Agent are the dialogue participants. Tool calls and tool results appear as typed content within the Agent turn, not as a peer speaker lane. Use this hierarchy when choosing labels in the extension and viewer.
+User and Agent are the dialogue participants. Agent is the viewer label for Pi's `assistant` Role. Tool calls and tool results appear as typed content within the Agent run, not as a peer speaker lane. This is a presentation hierarchy; it does not change Pi's underlying Message roles. Use it when choosing labels in the extension and viewer.
 
 ## Token accounting
 
-Per-turn usage comes directly from Pi's provider-reported values. Agent-run and Session figures sum completed turns only. Total input processed is cumulative billed/processed input, not context size. The latest-request context snapshot is separate: it shows that request's input tokens and the model context-window capacity when Pi exposes it. Missing values are not estimated.
+Per-Turn usage comes directly from Pi's provider-reported values. Agent-run and Session figures sum completed Turns only. Total input processed is cumulative provider-reported input, not context size. The latest-request Context snapshot is separate: it shows that request's input tokens and the model context-window capacity when Pi exposes it. Missing values are not estimated.

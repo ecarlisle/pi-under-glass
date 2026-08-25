@@ -49,4 +49,12 @@ pnpm test
 pnpm pack:dry
 ```
 
+Inside Pi, run the viewer with deterministic sample activity:
+
+```text
+/underglass debug
+```
+
+This opens an explicitly labeled sample-data view and plays `fixtures/sample-session.json` through the same browser event handler used for live Pi traffic. Edit that JSON file to exercise different message, tool, and usage states. Debug mode does not connect to Pi or retain session data. Refresh the page to restart the sample from the beginning.
+
 The wire format lives in `src/protocol.ts` and currently uses protocol version `2`.

@@ -17,6 +17,7 @@ export interface ViewerServerOptions {
 	token: string;
 	port?: number;
 	host?: string;
+	debugFixturePath?: string;
 	hello: () => HelloMessage;
 }
 
@@ -34,7 +35,7 @@ export async function startViewerServer(options: ViewerServerOptions): Promise<V
 	const sockets = new Set<WebSocket>();
 	const webSockets = new WebSocketServer({ noServer: true });
 	const http = createServer((request, response) => {
-		void serveAsset(request, response, options.token);
+		void serveAsset(request, response, options.token, options.debugFixturePath);
 	});
 
 	webSockets.on("connection", (socket) => {
@@ -96,14 +97,36 @@ export async function startViewerServer(options: ViewerServerOptions): Promise<V
 	};
 }
 
-async function serveAsset(request: IncomingMessage, response: ServerResponse, token: string): Promise<void> {
+async function serveAsset(
+	request: IncomingMessage,
+	response: ServerResponse,
+	token: string,
+	debugFixturePath?: string,
+): Promise<void> {
 	const url = requestUrl(request, "127.0.0.1");
-	const asset = ASSETS.get(url.pathname);
-	if (!asset) {
-		response.writeHead(404, { "content-type": "text/plain; charset=utf-8" });
-		response.end("Not found");
+	if (url.pathname === "/debug-fixture") {
+		if (!debugFixturePath) return respondNotFound(response);
+		if (url.searchParams.get("token") !== token) {
+			response.writeHead(401, { "content-type": "text/plain; charset=utf-8" });
+			response.end("This Pi Under Glass debug link is missing its session token.");
+			return;
+		}
+		try {
+			const body = await readFile(debugFixturePath);
+			response.writeHead(200, {
+				"cache-control": "no-store",
+				"content-type": "application/json; charset=utf-8",
+				"x-content-type-options": "nosniff",
+			});
+			response.end(body);
+		} catch {
+			response.writeHead(500, { "content-type": "text/plain; charset=utf-8" });
+			response.end("Debug fixture unavailable");
+		}
 		return;
 	}
+	const asset = ASSETS.get(url.pathname);
+	if (!asset) return respondNotFound(response);
 
 	if (url.pathname === "/" && url.searchParams.get("token") !== token) {
 		response.writeHead(401, { "content-type": "text/plain; charset=utf-8" });
@@ -116,7 +139,7 @@ async function serveAsset(request: IncomingMessage, response: ServerResponse, to
 		response.writeHead(200, {
 			"cache-control": "no-store",
 			"content-security-policy":
-				"default-src 'self'; connect-src ws://127.0.0.1:*; img-src 'self'; style-src 'self'; script-src 'self'; base-uri 'none'; frame-ancestors 'none'",
+				"default-src 'self'; connect-src 'self' ws://127.0.0.1:*; img-src 'self'; style-src 'self'; script-src 'self'; base-uri 'none'; frame-ancestors 'none'",
 			"content-type": asset.contentType,
 			"x-content-type-options": "nosniff",
 		});
@@ -125,6 +148,11 @@ async function serveAsset(request: IncomingMessage, response: ServerResponse, to
 		response.writeHead(500, { "content-type": "text/plain; charset=utf-8" });
 		response.end("Viewer asset unavailable");
 	}
+}
+
+function respondNotFound(response: ServerResponse): void {
+	response.writeHead(404, { "content-type": "text/plain; charset=utf-8" });
+	response.end("Not found");
 }
 
 function requestUrl(request: IncomingMessage, host: string): URL {
