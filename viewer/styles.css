@@ -112,6 +112,8 @@ h1 { margin: 0; font-size: 26px; }
 .content { min-width: 0; font-size: 14px; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; }
 .usage-block .message-type, .usage-block .content { color: var(--usage); }
 .usage-block .content { font: 12px/1.55 var(--mono); }
+.usage-part-dim { opacity: 0.55; }
+.usage-part-cost { color: var(--cost); font-weight: 600; }
 .tool-block > summary {
 	cursor: pointer;
 	color: var(--activity);

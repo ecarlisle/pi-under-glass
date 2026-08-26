@@ -311,20 +311,23 @@ function handleTurnUsage(event) {
 		content = createBlock(group, "Turn usage", "", "usage-block", event.at, "usage");
 		turnUsageRows.set(event.data.id, content);
 	}
-	content.textContent = formatUsage(event.data.usage);
+	content.replaceChildren(buildUsageFragment(event.data.usage));
 	if (event.data.contextSnapshot) updateContextSnapshot(event.data.contextSnapshot);
 	scrollToLatest();
 }
 
 function handleRunCompleted(event) {
+	// A single-turn run's total is numerically identical to the one Turn usage line already
+	// shown above it (usage.ts sums whole-run totals from completed turns), so skip the
+	// duplicate row entirely rather than repeating the same numbers with a "1 request" prefix.
+	if (event.data.modelRequests === 1) return;
 	const group = lastAgentGroup ?? createSpeakerGroup("assistant");
 	let content = runUsageRows.get(event.data.id);
 	if (!content) {
 		content = createBlock(group, "Agent run usage", "", "usage-block", event.at, "usage");
 		runUsageRows.set(event.data.id, content);
 	}
-	const requestLabel = event.data.modelRequests === 1 ? "1 model request" : `${event.data.modelRequests} model requests`;
-	content.textContent = `${requestLabel} · ${formatUsage(event.data.usage)}`;
+	content.replaceChildren(`${formatNumber(event.data.modelRequests)} requests · `, buildUsageFragment(event.data.usage));
 	scrollToLatest();
 }
 
@@ -703,15 +706,45 @@ function updateContextSnapshot(snapshot) {
 	}
 }
 
-function formatUsage(usage) {
+/**
+ * Builds a compact turn/run usage line as a fragment of styled spans: token pairs read as
+ * "in / out", zero-valued optional fields (reasoning, cache) are dimmed rather than omitted
+ * (0 is a reported value, distinct from "not reported"), and cost gets its own accent.
+ */
+function buildUsageFragment(usage) {
 	const parts = [];
-	if (usage.inputTokens !== undefined) parts.push(`Input ${formatNumber(usage.inputTokens)}`);
-	if (usage.outputTokens !== undefined) parts.push(`Output ${formatNumber(usage.outputTokens)}`);
-	if (usage.reasoningTokens !== undefined) parts.push(`Reasoning ${formatNumber(usage.reasoningTokens)}`);
-	if (usage.cacheReadTokens !== undefined) parts.push(`Cache read ${formatNumber(usage.cacheReadTokens)}`);
-	if (usage.cacheWriteTokens !== undefined) parts.push(`Cache write ${formatNumber(usage.cacheWriteTokens)}`);
-	if (usage.cost !== undefined) parts.push(`Cost ${formatCost(usage.cost)}`);
-	return parts.length > 0 ? parts.join(" · ") : "Usage unavailable";
+	if (usage.inputTokens !== undefined || usage.outputTokens !== undefined) {
+		const input = usage.inputTokens === undefined ? "—" : formatNumber(usage.inputTokens);
+		const output = usage.outputTokens === undefined ? "—" : formatNumber(usage.outputTokens);
+		parts.push({ text: `${input} in / ${output} out` });
+	}
+	if (usage.reasoningTokens !== undefined) {
+		parts.push({ text: `Reasoning ${formatNumber(usage.reasoningTokens)}`, dim: usage.reasoningTokens === 0 });
+	}
+	if (usage.cacheReadTokens !== undefined || usage.cacheWriteTokens !== undefined) {
+		const read = usage.cacheReadTokens;
+		const write = usage.cacheWriteTokens;
+		parts.push({
+			text: `Cache ${read === undefined ? "—" : formatNumber(read)} / ${write === undefined ? "—" : formatNumber(write)}`,
+			dim: !read && !write,
+		});
+	}
+	if (usage.cost !== undefined) parts.push({ text: formatCost(usage.cost), cost: true });
+
+	const fragment = document.createDocumentFragment();
+	if (parts.length === 0) {
+		fragment.append("Usage unavailable");
+		return fragment;
+	}
+	parts.forEach((part, index) => {
+		if (index > 0) fragment.append(" · ");
+		const span = document.createElement("span");
+		if (part.dim) span.className = "usage-part-dim";
+		if (part.cost) span.className = "usage-part-cost";
+		span.textContent = part.text;
+		fragment.append(span);
+	});
+	return fragment;
 }
 
 function formatNumber(value) {
