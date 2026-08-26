@@ -11,7 +11,7 @@
 			<header>
 				<div class="header-main">
 					<h1>Pi Under Glass</h1>
-					<span class="status" id="status">Connecting</span>
+					<span class="status" id="status" aria-live="polite">Connecting</span>
 				</div>
 				<section class="session-summary" aria-labelledby="session-heading">
 					<h2 id="session-heading">Session usage</h2>
@@ -40,20 +40,31 @@
 				</div>
 			</section>
 		</main>
-		<aside class="options" aria-labelledby="options-heading">
-			<div class="options-inner">
-				<h2 id="options-heading">Options</h2>
-				<div class="options-controls">
-					<label><input id="show-usage" type="checkbox" checked /> Show usage details</label>
-					<label><input id="show-tool-input" type="checkbox" checked /> Show tool input</label>
-					<label><input id="show-tool-results" type="checkbox" checked /> Show tool results</label>
-					<label><input id="show-timestamps" type="checkbox" /> Show timestamps</label>
-					<label><input id="show-thinking" type="checkbox" checked /> Show thinking</label>
-					<label><input id="show-system-prompt" type="checkbox" /> Show system prompt</label>
-					<label><input id="expand-thinking" type="checkbox" /> Expand thinking traces</label>
-					<label><input id="expand-tools" type="checkbox" /> Expand tools</label>
+		<button type="button" class="jump-to-latest" id="jump-to-latest" hidden>↓ New activity</button>
+		<aside class="options">
+			<details class="options-inner" id="options-details">
+				<summary>Options</summary>
+				<div class="options-body">
+					<div class="options-group">
+						<span class="options-group-label">Show</span>
+						<div class="options-controls">
+							<label><input id="show-usage" type="checkbox" checked /> Usage details</label>
+							<label><input id="show-tool-input" type="checkbox" checked /> Tool input</label>
+							<label><input id="show-tool-results" type="checkbox" checked /> Tool results</label>
+							<label><input id="show-timestamps" type="checkbox" /> Timestamps</label>
+							<label><input id="show-thinking" type="checkbox" checked /> Thinking</label>
+							<label><input id="show-system-prompt" type="checkbox" /> System prompt</label>
+						</div>
+					</div>
+					<div class="options-group">
+						<span class="options-group-label">Default expanded</span>
+						<div class="options-controls">
+							<label><input id="expand-thinking" type="checkbox" /> Thinking traces</label>
+							<label><input id="expand-tools" type="checkbox" /> Tools</label>
+						</div>
+					</div>
 				</div>
-			</div>
+			</details>
 		</aside>
 		<script type="module" src="/app.js"></script>
 	</body>

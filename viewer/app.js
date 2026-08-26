@@ -10,6 +10,8 @@ const elements = {
 	events: document.querySelector("#events"),
 	empty: document.querySelector("#empty"),
 	options: document.querySelector(".options"),
+	optionsDetails: document.querySelector("#options-details"),
+	jumpToLatest: document.querySelector("#jump-to-latest"),
 	showUsage: document.querySelector("#show-usage"),
 	showToolInput: document.querySelector("#show-tool-input"),
 	showToolResults: document.querySelector("#show-tool-results"),
@@ -39,23 +41,59 @@ const renderedSystemPrompts = new Set();
 let startedAt = Date.now();
 let retryTimer;
 let lastAgentGroup;
+let stickToBottom = true;
 
-for (const option of [
+const PREFS_KEY = "pi-under-glass:options";
+const contentOptions = [
 	elements.showUsage,
 	elements.showToolInput,
 	elements.showToolResults,
 	elements.showTimestamps,
 	elements.showThinking,
 	elements.showSystemPrompt,
-]) {
-	option.addEventListener("change", applyContentOptions);
+];
+const expandOptions = [elements.expandThinking, elements.expandTools];
+
+restoreOptionPrefs();
+
+for (const option of contentOptions) {
+	option.addEventListener("change", () => {
+		applyContentOptions();
+		saveOptionPrefs();
+	});
 }
 elements.expandThinking.addEventListener("change", () => {
 	setDetailsOpen(".thinking-block", elements.expandThinking.checked);
+	saveOptionPrefs();
 });
 elements.expandTools.addEventListener("change", () => {
 	setDetailsOpen(".tool-block", elements.expandTools.checked);
+	saveOptionPrefs();
 });
+elements.optionsDetails.addEventListener("toggle", saveOptionPrefs);
+
+function restoreOptionPrefs() {
+	let saved;
+	try {
+		saved = JSON.parse(localStorage.getItem(PREFS_KEY) ?? "{}");
+	} catch {
+		saved = {};
+	}
+	for (const option of [...contentOptions, ...expandOptions]) {
+		if (typeof saved[option.id] === "boolean") option.checked = saved[option.id];
+	}
+	if (typeof saved.optionsOpen === "boolean") elements.optionsDetails.open = saved.optionsOpen;
+}
+
+function saveOptionPrefs() {
+	const prefs = { optionsOpen: elements.optionsDetails.open };
+	for (const option of [...contentOptions, ...expandOptions]) prefs[option.id] = option.checked;
+	try {
+		localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
+	} catch {
+		// Ignore storage failures (e.g. private browsing quota).
+	}
+}
 
 function setDetailsOpen(selector, open) {
 	for (const details of document.querySelectorAll(selector)) details.open = open;
@@ -77,11 +115,31 @@ const optionsObserver = new ResizeObserver(() => {
 });
 optionsObserver.observe(elements.options);
 
+const SCROLL_BOTTOM_THRESHOLD = 80;
+window.addEventListener("scroll", updateStickToBottom, { passive: true });
+elements.jumpToLatest.addEventListener("click", () => {
+	stickToBottom = true;
+	scrollToLatest();
+});
+
+function updateStickToBottom() {
+	const distanceFromBottom = document.documentElement.scrollHeight - (window.scrollY + window.innerHeight);
+	stickToBottom = distanceFromBottom <= SCROLL_BOTTOM_THRESHOLD;
+	if (stickToBottom) elements.jumpToLatest.hidden = true;
+}
+
+const RECONNECT_BASE_MS = 1200;
+const RECONNECT_MAX_MS = 15000;
+let reconnectAttempts = 0;
+
 function connect() {
 	if (!token) return setStatus("Missing token", false);
 	const socket = new WebSocket(`ws://${location.host}/events?token=${encodeURIComponent(token)}`);
-	setStatus("Connecting", false);
-	socket.addEventListener("open", () => setStatus("Live", true));
+	setStatus(reconnectAttempts > 0 ? `Reconnecting (attempt ${reconnectAttempts})` : "Connecting", false);
+	socket.addEventListener("open", () => {
+		reconnectAttempts = 0;
+		setStatus("Live", true);
+	});
 	socket.addEventListener("message", ({ data }) => {
 		try {
 			handle(JSON.parse(data));
@@ -90,9 +148,11 @@ function connect() {
 		}
 	});
 	socket.addEventListener("close", () => {
-		setStatus("Reconnecting", false);
+		reconnectAttempts += 1;
+		const delay = Math.min(RECONNECT_BASE_MS * 2 ** (reconnectAttempts - 1), RECONNECT_MAX_MS);
+		setStatus(`Reconnecting in ${Math.round(delay / 1000)}s (attempt ${reconnectAttempts})`, false);
 		clearTimeout(retryTimer);
-		retryTimer = setTimeout(connect, 1200);
+		retryTimer = setTimeout(connect, delay);
 	});
 }
 
@@ -191,10 +251,13 @@ function renderSystemPrompt(runId, group) {
 	details.className = "message-block system-prompt-block";
 	const summary = document.createElement("summary");
 	summary.append(createTypeIcon("system-prompt"), "System prompt", createTimestamp(prompt.at));
+	const copyRow = document.createElement("div");
+	copyRow.className = "copy-row";
+	copyRow.append(createCopyButton(() => prompt.text));
 	const content = document.createElement("div");
 	content.className = "system-prompt-content";
 	content.textContent = prompt.text;
-	details.append(summary, content);
+	details.append(summary, copyRow, content);
 	group.prepend(details);
 	renderedSystemPrompts.add(runId);
 	systemPrompts.delete(runId);
@@ -210,6 +273,7 @@ function handleMessageDelta(event) {
 function handleThinkingDelta(event) {
 	const row = ensureThinkingRow(event.data.id);
 	if (!row) return;
+	row.rawText += event.data.text;
 	row.body.textContent += event.data.text;
 	row.body.classList.add("cursor");
 	scrollToLatest();
@@ -233,6 +297,7 @@ function finalizeThinking(messageId, thinking) {
 	if (!thinking) return;
 	const row = ensureThinkingRow(messageId);
 	if (!row) return;
+	row.rawText = thinking;
 	row.body.innerHTML = renderMarkdown(thinking);
 	row.body.classList.remove("cursor");
 }
@@ -268,7 +333,7 @@ function handleToolStarted(event) {
 	row.row.classList.add("running");
 	row.status.textContent = "running";
 	if (event.data.args !== undefined) {
-		addToolSection(row.body, "Args", truncateText(toolValueText(event.data.args)), "tool-input");
+		addToolSection(row.body, "Args", toolValueText(event.data.args), "tool-input");
 	}
 	toolRows.set(event.data.id, row);
 	scrollToLatest();
@@ -284,17 +349,17 @@ function handleToolCompleted(event) {
 	row.status.textContent = `${event.data.isError ? "failed" : "done"} · ${formatDuration(event.data.durationMs)}`;
 	if (event.data.isError) row.row.classList.add("error");
 	if (event.data.result !== undefined) {
-		addToolSection(
-			row.body,
-			"Result",
-			truncateText(toolValueText(event.data.result)),
-			"tool-result",
-			event.data.isError,
-		);
+		addToolSection(row.body, "Result", toolValueText(event.data.result), "tool-result", event.data.isError);
 	}
 	toolRows.set(event.data.id, row);
 	scrollToLatest();
 }
+
+// Bounds how many auto-expanded tool rows accumulate in a long session: once more than this
+// many are open by default, the oldest ones auto-collapse. Rows the user has explicitly
+// toggled are never touched — nothing is ever removed, just visually collapsed.
+const AUTO_COLLAPSE_KEEP_OPEN = 25;
+const autoManagedToolRows = [];
 
 /** Builds a collapsible tool row: <details> with summary (name + status) and a detail body. */
 function createToolRow(group, name, at) {
@@ -313,19 +378,46 @@ function createToolRow(group, name, at) {
 	body.className = "tool-details";
 	row.append(summary, body);
 	group.append(row);
+	summary.addEventListener("click", () => (row.dataset.pinned = "true"), { once: true });
+	autoManagedToolRows.push(row);
+	while (autoManagedToolRows.length > AUTO_COLLAPSE_KEEP_OPEN) {
+		const oldest = autoManagedToolRows.shift();
+		if (!oldest.dataset.pinned && !oldest.classList.contains("running")) oldest.open = false;
+	}
 	return { row, status, body };
 }
 
-function addToolSection(body, label, text, className, isError = false) {
+function addToolSection(body, label, fullText, className, isError = false) {
 	const section = document.createElement("div");
 	section.className = `tool-section ${className}`;
+	const header = document.createElement("div");
+	header.className = "tool-section-header";
 	const heading = document.createElement("h4");
 	heading.textContent = label;
+	header.append(heading, createCopyButton(() => fullText));
 	const pre = document.createElement("pre");
-	pre.textContent = text;
+	pre.textContent = truncateText(fullText);
 	if (isError) pre.classList.add("error");
-	section.append(heading, pre);
+	section.append(header, pre);
 	body.append(section);
+}
+
+/** A small button that copies the result of `getText()` to the clipboard, with transient feedback. */
+function createCopyButton(getText) {
+	const button = document.createElement("button");
+	button.type = "button";
+	button.className = "copy-button";
+	button.textContent = "Copy";
+	button.addEventListener("click", (event) => {
+		event.preventDefault();
+		event.stopPropagation();
+		navigator.clipboard
+			.writeText(getText())
+			.then(() => (button.textContent = "Copied"))
+			.catch(() => (button.textContent = "Copy failed"));
+		setTimeout(() => (button.textContent = "Copy"), 1500);
+	});
+	return button;
 }
 
 const TOOL_TEXT_LIMIT = 2000;
@@ -358,11 +450,14 @@ function ensureThinkingRow(messageId) {
 		details.open = elements.expandThinking.checked;
 		const summary = document.createElement("summary");
 		summary.append(createTypeIcon("thinking"), "Thinking");
+		const copyRow = document.createElement("div");
+		copyRow.className = "copy-row";
+		copyRow.append(createCopyButton(() => row.rawText));
 		const body = document.createElement("div");
 		body.className = "thinking-content";
-		details.append(summary, body);
+		details.append(summary, copyRow, body);
 		block.insertBefore(details, content);
-		row = { details, body };
+		row = { details, body, rawText: "" };
 		thinkingRows.set(messageId, row);
 	}
 	return row;
@@ -597,6 +692,7 @@ function formatCost(value) {
 function setStatus(text, live) {
 	elements.status.textContent = text;
 	elements.status.classList.toggle("live", live);
+	elements.status.classList.toggle("reconnecting", text.startsWith("Reconnecting"));
 }
 
 function formatDuration(milliseconds) {
@@ -604,7 +700,13 @@ function formatDuration(milliseconds) {
 }
 
 function scrollToLatest() {
-	window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+	if (!stickToBottom) {
+		elements.jumpToLatest.hidden = false;
+		return;
+	}
+	// Instant, not smooth: a smooth scroll animates toward a target that can go stale mid-flight
+	// while streaming content keeps growing the page, which falsely reads as "user scrolled away."
+	window.scrollTo({ top: document.body.scrollHeight, behavior: "auto" });
 }
 
 setInterval(() => {

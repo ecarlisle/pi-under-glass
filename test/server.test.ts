@@ -28,12 +28,12 @@ test("serves the viewer and authenticates WebSocket clients", async (context) =>
 	assert.match(authorized.headers.get("content-security-policy") ?? "", /connect-src 'self'/);
 	const viewer = await authorized.text();
 	assert.match(viewer, /Pi Under Glass/);
-	assert.match(viewer, /Show usage details/);
-	assert.match(viewer, /Show tool input/);
-	assert.match(viewer, /Show tool results/);
-	assert.match(viewer, /Show timestamps/);
-	assert.match(viewer, /Show thinking/);
-	assert.match(viewer, /Show system prompt/);
+	assert.match(viewer, /Usage details/);
+	assert.match(viewer, /Tool input/);
+	assert.match(viewer, /Tool results/);
+	assert.match(viewer, /Timestamps/);
+	assert.match(viewer, /Thinking/);
+	assert.match(viewer, /System prompt/);
 
 	const unauthorized = await fetch(`http://${server.host}:${server.port}/`);
 	assert.equal(unauthorized.status, 401);
