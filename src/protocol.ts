@@ -54,15 +54,17 @@ export interface EventDataMap {
 		runId: string;
 		usage: UsageValues;
 		contextSnapshot?: ContextSnapshot;
+		durationMs?: number;
 	};
 	"run.completed": { id: string; modelRequests: number; usage: UsageValues };
-	"tool.started": { id: string; name: string; args?: unknown };
+	"tool.started": { id: string; name: string; args?: unknown; turnId?: string };
 	"tool.completed": {
 		id: string;
 		name: string;
 		isError: boolean;
 		durationMs: number;
 		result?: unknown;
+		turnId?: string;
 	};
 	metrics: Metrics;
 }

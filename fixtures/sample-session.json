@@ -56,7 +56,7 @@
         "data": {
           "id": "sample-turn-1", "messageId": "sample-agent-1", "runId": "sample-run-1",
           "usage": { "inputTokens": 1800, "outputTokens": 120, "reasoningTokens": 0, "cacheReadTokens": 0, "cacheWriteTokens": 120, "cost": 0.0032 },
-          "contextSnapshot": { "inputTokens": 1800, "contextWindow": 128000 }
+          "contextSnapshot": { "inputTokens": 1800, "contextWindow": 128000 }, "durationMs": 1400
         }
       }
     },
@@ -124,7 +124,7 @@
       "afterMs": 80,
       "event": {
         "v": 2, "seq": 14, "at": 960, "sessionId": "sample-session", "type": "tool.started",
-        "data": { "id": "sample-tool-1", "name": "read", "args": { "path": "package.json", "section": "scripts" } }
+        "data": { "id": "sample-tool-1", "name": "read", "args": { "path": "package.json", "section": "scripts" }, "turnId": "sample-turn-2" }
       }
     },
     {
@@ -132,7 +132,7 @@
       "event": {
         "v": 2, "seq": 15, "at": 1080, "sessionId": "sample-session", "type": "tool.completed",
         "data": {
-          "id": "sample-tool-1", "name": "read", "isError": false, "durationMs": 42,
+          "id": "sample-tool-1", "name": "read", "isError": false, "durationMs": 42, "turnId": "sample-turn-2",
           "result": { "scripts": { "check": "tsc --noEmit", "test": "tsx --test test/*.test.ts", "pack:dry": "npm pack --dry-run" } }
         }
       }
@@ -141,7 +141,7 @@
       "afterMs": 60,
       "event": {
         "v": 2, "seq": 16, "at": 1140, "sessionId": "sample-session", "type": "tool.started",
-        "data": { "id": "sample-tool-2", "name": "check", "args": { "commands": ["pnpm check", "pnpm test"] } }
+        "data": { "id": "sample-tool-2", "name": "check", "args": { "commands": ["pnpm check", "pnpm test"] }, "turnId": "sample-turn-2" }
       }
     },
     {
@@ -149,7 +149,7 @@
       "event": {
         "v": 2, "seq": 17, "at": 1300, "sessionId": "sample-session", "type": "tool.completed",
         "data": {
-          "id": "sample-tool-2", "name": "check", "isError": false, "durationMs": 1250,
+          "id": "sample-tool-2", "name": "check", "isError": false, "durationMs": 1250, "turnId": "sample-turn-2",
           "result": "TypeScript check passed.\n9 tests passed.\nNo failures found."
         }
       }
@@ -172,7 +172,7 @@
         "data": {
           "id": "sample-turn-2", "messageId": "sample-agent-2", "runId": "sample-run-2",
           "usage": { "inputTokens": 2800, "outputTokens": 90, "reasoningTokens": 110, "cacheReadTokens": 600, "cacheWriteTokens": 0, "cost": 0.0054 },
-          "contextSnapshot": { "inputTokens": 2800, "contextWindow": 128000 }
+          "contextSnapshot": { "inputTokens": 2800, "contextWindow": 128000 }, "durationMs": 2100
         }
       }
     },
@@ -214,7 +214,7 @@
         "data": {
           "id": "sample-turn-3", "messageId": "sample-agent-3", "runId": "sample-run-2",
           "usage": { "inputTokens": 3600, "outputTokens": 260, "reasoningTokens": 40, "cacheReadTokens": 1400, "cacheWriteTokens": 240, "cost": 0.0086 },
-          "contextSnapshot": { "inputTokens": 3600, "contextWindow": 128000 }
+          "contextSnapshot": { "inputTokens": 3600, "contextWindow": 128000 }, "durationMs": 1800
         }
       }
     },
@@ -282,7 +282,7 @@
       "afterMs": 80,
       "event": {
         "v": 2, "seq": 32, "at": 2390, "sessionId": "sample-session", "type": "tool.started",
-        "data": { "id": "sample-tool-3", "name": "check", "args": { "command": "pnpm test --filter missing-suite", "timeoutMs": 30000 } }
+        "data": { "id": "sample-tool-3", "name": "check", "args": { "command": "pnpm test --filter missing-suite", "timeoutMs": 30000 }, "turnId": "sample-turn-4" }
       }
     },
     {
@@ -290,7 +290,7 @@
       "event": {
         "v": 2, "seq": 33, "at": 2570, "sessionId": "sample-session", "type": "tool.completed",
         "data": {
-          "id": "sample-tool-3", "name": "check", "isError": true, "durationMs": 2300,
+          "id": "sample-tool-3", "name": "check", "isError": true, "durationMs": 2300, "turnId": "sample-turn-4",
           "result": { "exitCode": 1, "message": "No tests matched missing-suite.", "recovery": "Run pnpm test without the unsupported filter." }
         }
       }
@@ -313,7 +313,7 @@
         "data": {
           "id": "sample-turn-4", "messageId": "sample-agent-4", "runId": "sample-run-3",
           "usage": { "inputTokens": 4200, "outputTokens": 85, "reasoningTokens": 160, "cacheReadTokens": 1800, "cacheWriteTokens": 0, "cost": 0.0098 },
-          "contextSnapshot": { "inputTokens": 4200 }
+          "contextSnapshot": { "inputTokens": 4200 }, "durationMs": 3200
         }
       }
     },
@@ -363,7 +363,7 @@
         "data": {
           "id": "sample-turn-5", "messageId": "sample-agent-5", "runId": "sample-run-3",
           "usage": { "inputTokens": 4600, "outputTokens": 310, "reasoningTokens": 70, "cacheReadTokens": 2200, "cacheWriteTokens": 320, "cost": 0.0114 },
-          "contextSnapshot": { "inputTokens": 4600, "contextWindow": 128000 }
+          "contextSnapshot": { "inputTokens": 4600, "contextWindow": 128000 }, "durationMs": 2200
         }
       }
     },

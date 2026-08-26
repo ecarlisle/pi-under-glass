@@ -55,6 +55,7 @@ interface ActiveTurn {
 	runId: string;
 	run: ActiveRun;
 	messageId: string | undefined;
+	startedAt: number;
 }
 
 type EventHandler = (event: any, context: PiContext) => void | Promise<void>;
@@ -76,7 +77,7 @@ export default function piUnderGlass(pi: PiApi): void {
 	const token = randomBytes(24).toString("base64url");
 	const startedAt = Date.now();
 	const sessionUsage = createUsageAccumulator();
-	const toolStarts = new Map<string, number>();
+	const toolStarts = new Map<string, { start: number; turnId?: string }>();
 	let cwd = process.cwd();
 	let sequence = 0;
 	let messageSequence = 0;
@@ -228,7 +229,7 @@ export default function piUnderGlass(pi: PiApi): void {
 
 	pi.on("turn_start", () => {
 		const run = currentRun();
-		activeTurn = { id: `turn-${++turnSequence}`, runId: run.id, run, messageId: undefined };
+		activeTurn = { id: `turn-${++turnSequence}`, runId: run.id, run, messageId: undefined, startedAt: Date.now() };
 	});
 
 	pi.on("message_update", (event: { assistantMessageEvent?: { type: string; delta?: string } }) => {
@@ -255,6 +256,7 @@ export default function piUnderGlass(pi: PiApi): void {
 	});
 
 	pi.on("turn_end", (event: { message: Message }, context) => {
+		const hadActiveTurn = Boolean(activeTurn);
 		let turn = activeTurn;
 		if (!turn) {
 			const fallbackRun = currentRun();
@@ -263,8 +265,12 @@ export default function piUnderGlass(pi: PiApi): void {
 				runId: fallbackRun.id,
 				run: fallbackRun,
 				messageId: undefined,
+				startedAt: Date.now(),
 			};
 		}
+		// Only report duration when we actually observed turn_start; a synthetic fallback turn has
+		// no real start time to measure from, and this codebase never estimates missing values.
+		const durationMs = hadActiveTurn ? Date.now() - turn.startedAt : undefined;
 		const usage = providerUsage(event.message.usage);
 		addUsage(turn.run.usage, usage);
 		addUsage(sessionUsage, usage);
@@ -285,6 +291,7 @@ export default function piUnderGlass(pi: PiApi): void {
 				usage,
 				...(turn.messageId ? { messageId: turn.messageId } : {}),
 				...(latestContext ? { contextSnapshot: latestContext } : {}),
+				...(durationMs !== undefined ? { durationMs } : {}),
 			});
 		}
 		publish("metrics", metrics());
@@ -294,12 +301,13 @@ export default function piUnderGlass(pi: PiApi): void {
 	pi.on("agent_settled", () => finishRun());
 
 	pi.on("tool_execution_start", (event: { toolCallId: string; toolName: string; args?: unknown }) => {
-		toolStarts.set(event.toolCallId, Date.now());
+		toolStarts.set(event.toolCallId, { start: Date.now(), ...(activeTurn ? { turnId: activeTurn.id } : {}) });
 		tools += 1;
 		publish("tool.started", {
 			id: event.toolCallId,
 			name: event.toolName,
 			...(event.args !== undefined ? { args: event.args } : {}),
+			...(activeTurn ? { turnId: activeTurn.id } : {}),
 		});
 		publish("metrics", metrics());
 	});
@@ -307,14 +315,15 @@ export default function piUnderGlass(pi: PiApi): void {
 	pi.on(
 		"tool_execution_end",
 		(event: { toolCallId: string; toolName: string; isError: boolean; result?: unknown }) => {
-			const beganAt = toolStarts.get(event.toolCallId) ?? Date.now();
+			const began = toolStarts.get(event.toolCallId);
 			toolStarts.delete(event.toolCallId);
 			publish("tool.completed", {
 				id: event.toolCallId,
 				name: event.toolName,
 				isError: event.isError,
-				durationMs: Date.now() - beganAt,
+				durationMs: Date.now() - (began?.start ?? Date.now()),
 				...(event.result !== undefined ? { result: event.result } : {}),
+				...(began?.turnId ? { turnId: began.turnId } : {}),
 			});
 		},
 	);

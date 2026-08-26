@@ -143,6 +143,9 @@ h1 { margin: 0; font-size: 26px; }
 .usage-block .content { font: 12px/1.55 var(--mono); }
 .usage-part-dim { opacity: 0.55; }
 .usage-part-cost { color: var(--cost); font-weight: 600; }
+.turn-timing-bar { display: flex; height: 4px; border-radius: 999px; overflow: hidden; margin-top: 6px; max-width: 260px; background: var(--border); }
+.turn-timing-fill--think { background: var(--agent); }
+.turn-timing-fill--tools { background: var(--activity); }
 .tool-block > summary,
 .thinking-block > summary,
 .system-prompt-block > summary {

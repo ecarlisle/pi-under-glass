@@ -38,6 +38,8 @@ const toolRows = new Map();
 const turnUsageRows = new Map();
 const runUsageRows = new Map();
 const runGroups = new Map();
+const turnToolTime = new Map();
+const runTiming = new Map();
 const systemPrompts = new Map();
 const renderedSystemPrompts = new Set();
 let startedAt = Date.now();
@@ -368,7 +370,17 @@ function handleTurnUsage(event) {
 		content = createBlock(group, "Turn usage", "", "usage-block turn-usage-block", event.at, "usage");
 		turnUsageRows.set(event.data.id, content);
 	}
-	content.replaceChildren(buildUsageFragment(event.data.usage));
+	const nodes = [buildUsageFragment(event.data.usage)];
+	if (event.data.durationMs !== undefined) {
+		const toolMs = turnToolTime.get(event.data.id) ?? 0;
+		const llmMs = Math.max(0, event.data.durationMs - toolMs);
+		nodes.push(buildTimingFragment(llmMs, toolMs), createTimingBar(llmMs, toolMs));
+		const run = runTiming.get(event.data.runId) ?? { llmMs: 0, toolMs: 0 };
+		run.llmMs += llmMs;
+		run.toolMs += toolMs;
+		runTiming.set(event.data.runId, run);
+	}
+	content.replaceChildren(...nodes);
 	if (event.data.contextSnapshot) updateContextSnapshot(event.data.contextSnapshot);
 	scrollToLatest();
 }
@@ -384,7 +396,10 @@ function handleRunCompleted(event) {
 		content = createBlock(group, "Agent run usage", "", "usage-block", event.at, "usage");
 		runUsageRows.set(event.data.id, content);
 	}
-	content.replaceChildren(`${formatNumber(event.data.modelRequests)} requests · `, buildUsageFragment(event.data.usage));
+	const nodes = [`${formatNumber(event.data.modelRequests)} requests · `, buildUsageFragment(event.data.usage)];
+	const timing = runTiming.get(event.data.id);
+	if (timing) nodes.push(buildTimingFragment(timing.llmMs, timing.toolMs), createTimingBar(timing.llmMs, timing.toolMs));
+	content.replaceChildren(...nodes);
 	scrollToLatest();
 }
 
@@ -409,6 +424,9 @@ function handleToolCompleted(event) {
 	row.row.classList.remove("running");
 	row.status.textContent = `${event.data.isError ? "failed" : "done"} · ${formatDuration(event.data.durationMs)}`;
 	if (event.data.isError) row.row.classList.add("error");
+	if (event.data.turnId) {
+		turnToolTime.set(event.data.turnId, (turnToolTime.get(event.data.turnId) ?? 0) + event.data.durationMs);
+	}
 	if (event.data.result !== undefined) {
 		addToolSection(row.body, "Result", toolValueText(event.data.result), "tool-result", event.data.isError);
 	}
@@ -845,6 +863,43 @@ function buildUsageFragment(usage) {
 		fragment.append(span);
 	});
 	return fragment;
+}
+
+/**
+ * A turn's wall-clock time already includes any tool calls made during it, so "think time"
+ * isn't measured directly — it's the remainder after subtracting the turn's own tool time.
+ */
+function buildTimingFragment(llmMs, toolMs) {
+	const fragment = document.createDocumentFragment();
+	fragment.append(" · ");
+	const think = document.createElement("span");
+	think.textContent = `${formatDuration(llmMs)} think`;
+	fragment.append(think, " / ");
+	const tools = document.createElement("span");
+	if (toolMs === 0) tools.className = "usage-part-dim";
+	tools.textContent = `${formatDuration(toolMs)} tools`;
+	fragment.append(tools);
+	return fragment;
+}
+
+/** A tiny proportional bar showing the think/tool split, reusing the colors already used
+ * elsewhere for "assistant" (agent green) and "tool" (activity gold) content. */
+function createTimingBar(llmMs, toolMs) {
+	const total = llmMs + toolMs;
+	const bar = document.createElement("div");
+	bar.className = "turn-timing-bar";
+	if (total <= 0) {
+		bar.hidden = true;
+		return bar;
+	}
+	const think = document.createElement("div");
+	think.className = "turn-timing-fill turn-timing-fill--think";
+	think.style.width = `${((llmMs / total) * 100).toFixed(1)}%`;
+	const tools = document.createElement("div");
+	tools.className = "turn-timing-fill turn-timing-fill--tools";
+	tools.style.width = `${((toolMs / total) * 100).toFixed(1)}%`;
+	bar.append(think, tools);
+	return bar;
 }
 
 function formatNumber(value) {
