@@ -660,6 +660,7 @@ function createBlock(group, type, text, className = "", at, iconKind) {
 		typeLabel.append(type);
 		block.append(typeLabel);
 	}
+	block.append(createTimestamp(at));
 	const content = document.createElement("div");
 	content.className = "content";
 	content.textContent = text;
