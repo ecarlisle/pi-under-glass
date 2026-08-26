@@ -580,10 +580,13 @@ function createSessionMarker(kind, title, detail, at, expandedText) {
 		details.open = elements.expandCompactions.checked;
 		const summary = document.createElement("summary");
 		summary.textContent = "Retained context summary";
+		const copyRow = document.createElement("div");
+		copyRow.className = "copy-row";
+		copyRow.append(createCopyButton(() => expandedText));
 		const content = document.createElement("div");
 		content.className = "compaction-summary-content";
 		content.innerHTML = renderMarkdown(expandedText);
-		details.append(summary, content);
+		details.append(summary, copyRow, content);
 		marker.append(details);
 	}
 	row.append(label, marker);
