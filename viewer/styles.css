@@ -51,14 +51,17 @@ h1 { margin: 0; font-size: 26px; }
 .session-summary { margin: 12px 0 0; }
 .session-summary h2 { margin: 0 0 8px; font-size: 14px; }
 
-.metrics {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 18px 28px;
+.metrics-card {
 	border: 1px solid var(--border);
 	border-radius: 6px;
 	background: var(--surface);
 	padding: 14px 16px;
+}
+
+.metrics {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 18px 28px;
 }
 
 .metrics div { min-width: 92px; }
@@ -68,15 +71,14 @@ h1 { margin: 0; font-size: 26px; }
 
 .metrics-detail {
 	gap: 5px 24px;
-	margin-top: 8px;
-	padding: 0 2px;
-	border: 0;
-	background: none;
+	margin-top: 12px;
+	padding-top: 12px;
+	border-top: 1px solid var(--border);
 }
 .metrics-detail div { min-width: 0; }
 .metrics-detail span { margin-bottom: 0; font-size: 10px; }
 .metrics-detail strong { font-size: 13px; }
-/* Collapses the whole detail row when every field inside it is hidden (nothing to report). */
+/* Collapses the divider and row together when every field inside it is hidden (nothing to report). */
 .metrics-detail:not(:has(> :not([hidden]))) { display: none; }
 
 .context-gauge { margin-top: 8px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); }
@@ -114,11 +116,16 @@ h1 { margin: 0; font-size: 26px; }
 .usage-block .content { font: 12px/1.55 var(--mono); }
 .usage-part-dim { opacity: 0.55; }
 .usage-part-cost { color: var(--cost); font-weight: 600; }
-.tool-block > summary {
+.tool-block > summary,
+.thinking-block > summary,
+.system-prompt-block > summary {
 	cursor: pointer;
-	color: var(--activity);
 	font: 600 12px/1.55 var(--mono);
 	text-transform: uppercase;
+}
+.tool-block > summary,
+.thinking-block > summary {
+	color: var(--activity);
 }
 .tool-block .tool-status { margin-left: 8px; color: var(--muted); font-weight: 400; text-transform: none; }
 .tool-block.error .tool-status { color: var(--error); }
@@ -141,12 +148,6 @@ h1 { margin: 0; font-size: 26px; }
 }
 .tool-section pre.error { color: var(--error); border-color: #75413d; background: #241716; }
 .thinking-block { margin-bottom: 10px; }
-.thinking-block > summary {
-	cursor: pointer;
-	color: var(--activity);
-	font: 600 12px/1.55 var(--mono);
-	text-transform: uppercase;
-}
 .thinking-block .thinking-content {
 	padding: 8px 10px;
 	border: 1px solid #51472f;
@@ -158,12 +159,7 @@ h1 { margin: 0; font-size: 26px; }
 	white-space: pre-wrap;
 	overflow-wrap: anywhere;
 }
-.system-prompt-block > summary {
-	cursor: pointer;
-	color: var(--usage);
-	font: 600 12px/1.55 var(--mono);
-	text-transform: uppercase;
-}
+.system-prompt-block > summary { color: var(--usage); }
 .system-prompt-block .timestamp { margin-left: 8px; font-weight: 400; text-transform: none; }
 .system-prompt-content {
 	max-height: 320px;

@@ -15,15 +15,17 @@
 				</div>
 				<section class="session-summary" aria-labelledby="session-heading">
 					<h2 id="session-heading">Session usage</h2>
-					<div class="metrics metrics-headline">
-						<div><span>Elapsed</span><strong id="elapsed">00:00</strong></div>
-						<div><span>Activity</span><strong id="activity">0 requests</strong></div>
-						<div data-metric="tokens" hidden><span>Tokens</span><strong id="tokens"></strong></div>
-						<div data-metric="cost" hidden><span>Cost</span><strong id="cost"></strong></div>
-					</div>
-					<div class="metrics metrics-detail">
-						<div data-metric="reasoning" hidden><span>Reasoning</span><strong id="reasoning"></strong></div>
-						<div data-metric="cache" hidden><span>Cache r/w</span><strong id="cache"></strong></div>
+					<div class="metrics-card">
+						<div class="metrics metrics-headline">
+							<div><span>Elapsed</span><strong id="elapsed">00:00</strong></div>
+							<div><span>Activity</span><strong id="activity">0 requests</strong></div>
+							<div data-metric="tokens" hidden><span>Tokens</span><strong id="tokens"></strong></div>
+							<div data-metric="cost" hidden><span>Cost</span><strong id="cost"></strong></div>
+						</div>
+						<div class="metrics metrics-detail">
+							<div data-metric="reasoning" hidden><span>Reasoning</span><strong id="reasoning"></strong></div>
+							<div data-metric="cache" hidden><span>Cache r/w</span><strong id="cache"></strong></div>
+						</div>
 					</div>
 					<div class="context-gauge" id="context-snapshot" hidden>
 						<div class="context-gauge-label">
