@@ -308,7 +308,7 @@ function handleTurnUsage(event) {
 	const group = message?.closest(".message-group") ?? lastAgentGroup ?? createSpeakerGroup("assistant");
 	let content = turnUsageRows.get(event.data.id);
 	if (!content) {
-		content = createBlock(group, "Turn usage", "", "usage-block", event.at, "usage");
+		content = createBlock(group, "Turn usage", "", "usage-block turn-usage-block", event.at, "usage");
 		turnUsageRows.set(event.data.id, content);
 	}
 	content.replaceChildren(buildUsageFragment(event.data.usage));

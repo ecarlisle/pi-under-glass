@@ -109,6 +109,9 @@ h1 { margin: 0; font-size: 26px; }
 .message-group { min-width: 0; }
 .message-block { position: relative; }
 .message-block + .message-block { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); }
+/* A Turn usage block marks the end of a turn (see docs/terms.md); give the block that starts the
+   next turn a bit more room than the standard inter-block gap, so turns read as distinct chunks. */
+.message-block.turn-usage-block + .message-block { margin-top: 24px; }
 .message-type { display: flex; align-items: center; margin-bottom: 5px; color: var(--muted); font-size: 10px; font-weight: 600; text-transform: uppercase; }
 .message-type .type-icon { margin-right: 4px; vertical-align: 0; }
 .content { min-width: 0; font-size: 14px; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; }
@@ -160,7 +163,6 @@ h1 { margin: 0; font-size: 26px; }
 	overflow-wrap: anywhere;
 }
 .system-prompt-block > summary { color: var(--usage); }
-.system-prompt-block .timestamp { margin-left: 8px; font-weight: 400; text-transform: none; }
 .system-prompt-content {
 	max-height: 320px;
 	padding: 8px 10px;
@@ -186,8 +188,13 @@ h1 { margin: 0; font-size: 26px; }
 }
 .copy-button:hover { border-color: var(--agent); color: var(--agent); }
 .timestamp { display: none; color: var(--muted); font: 10px/1.4 var(--mono); }
-.message-block > .timestamp { position: absolute; top: 0; right: 0; }
-.tool-summary .timestamp { margin-left: 8px; font-weight: 400; text-transform: none; }
+/* Every timestamp sits in the same top-right corner, whether it's a direct child of the block
+   (Text, Turn usage, Agent run usage) or nested inside a <summary> (Tool, System prompt) — position
+   is relative to .message-block either way since <summary> itself isn't a positioning context. */
+.message-block .timestamp { position: absolute; top: 0; right: 0; text-transform: none; }
+/* Blocks after the first in a group get a 14px top divider (see ".message-block + .message-block"
+   above); the timestamp's own top offset has to match that padding or it floats above the divider. */
+.message-block + .message-block .timestamp { top: 14px; }
 body:not(.show-usage) .usage-block,
 body:not(.show-tool-input) .tool-input,
 body:not(.show-tool-results) .tool-result,
@@ -233,19 +240,14 @@ body.show-timestamps .timestamp { display: inline; }
 	margin: 0 auto;
 	padding: 10px 0 calc(10px + env(safe-area-inset-bottom));
 }
+/* Uses the browser's native disclosure marker (same as tool/thinking/system-prompt summaries) rather
+   than a custom glyph, so the arrow renders at the same size and style everywhere. */
 .options-inner > summary {
-	display: flex;
-	align-items: center;
-	gap: 6px;
 	color: var(--text);
 	font-size: 14px;
 	font-weight: 600;
 	cursor: pointer;
-	list-style: none;
 }
-.options-inner > summary::-webkit-details-marker { display: none; }
-.options-inner > summary::before { content: "▸"; display: inline-block; color: var(--muted); font-size: 11px; }
-.options-inner[open] > summary::before { content: "▾"; }
 .options-body { display: flex; flex-wrap: wrap; gap: 20px 32px; margin-top: 12px; }
 .options-group { display: flex; flex-direction: column; gap: 8px; }
 .options-group-label { color: var(--muted); font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.02em; }
