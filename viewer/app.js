@@ -1,12 +1,13 @@
 const elements = {
 	status: document.querySelector("#status"),
 	elapsed: document.querySelector("#elapsed"),
-	requests: document.querySelector("#requests"),
-	input: document.querySelector("#input"),
-	output: document.querySelector("#output"),
-	tools: document.querySelector("#tools"),
+	activity: document.querySelector("#activity"),
+	tokens: document.querySelector("#tokens"),
+	cache: document.querySelector("#cache"),
 	contextSnapshot: document.querySelector("#context-snapshot"),
 	contextValue: document.querySelector("#context-value"),
+	contextTrack: document.querySelector("#context-track"),
+	contextFill: document.querySelector("#context-fill"),
 	events: document.querySelector("#events"),
 	empty: document.querySelector("#empty"),
 	options: document.querySelector(".options"),
@@ -644,16 +645,29 @@ function setMessageContent(element, text, role) {
 }
 
 function updateMetrics(metrics) {
-	elements.requests.textContent = formatNumber(metrics.modelRequests);
-	updateOptionalMetric("input", metrics.modelRequests === 0 ? 0 : metrics.usage.inputTokens, formatNumber);
-	updateOptionalMetric("output", metrics.modelRequests === 0 ? 0 : metrics.usage.outputTokens, formatNumber);
-	updateOptionalMetric("reasoning", metrics.usage.reasoningTokens, formatNumber);
-	updateOptionalMetric("cache-read", metrics.usage.cacheReadTokens, formatNumber);
-	updateOptionalMetric("cache-write", metrics.usage.cacheWriteTokens, formatNumber);
+	updateActivity(metrics.modelRequests, metrics.tools);
+	updatePairedMetric(
+		"tokens",
+		metrics.modelRequests === 0 ? 0 : metrics.usage.inputTokens,
+		metrics.modelRequests === 0 ? 0 : metrics.usage.outputTokens,
+		(input, output) => `${input} in / ${output} out`,
+	);
 	updateOptionalMetric("cost", metrics.usage.cost, formatCost);
-	elements.tools.textContent = String(metrics.tools);
+	updateOptionalMetric("reasoning", metrics.usage.reasoningTokens, formatNumber);
+	updatePairedMetric(
+		"cache",
+		metrics.usage.cacheReadTokens,
+		metrics.usage.cacheWriteTokens,
+		(read, write) => `${read} / ${write}`,
+	);
 	if (metrics.latestContext) updateContextSnapshot(metrics.latestContext);
 	else elements.contextSnapshot.hidden = true;
+}
+
+function updateActivity(modelRequests, tools) {
+	const requestLabel = modelRequests === 1 ? "1 request" : `${formatNumber(modelRequests)} requests`;
+	const toolLabel = tools > 0 ? ` · ${tools === 1 ? "1 tool" : `${formatNumber(tools)} tools`}` : "";
+	elements.activity.textContent = `${requestLabel}${toolLabel}`;
 }
 
 function updateOptionalMetric(name, value, format) {
@@ -663,11 +677,30 @@ function updateOptionalMetric(name, value, format) {
 	if (value !== undefined) target.textContent = format(value);
 }
 
+/** Renders two related counts (e.g. input/output tokens, cache read/write) as one compact field. */
+function updatePairedMetric(name, first, second, format) {
+	const wrapper = document.querySelector(`[data-metric="${name}"]`);
+	wrapper.hidden = first === undefined && second === undefined;
+	if (wrapper.hidden) return;
+	elements[name].textContent = format(
+		first === undefined ? "—" : formatNumber(first),
+		second === undefined ? "—" : formatNumber(second),
+	);
+}
+
 function updateContextSnapshot(snapshot) {
 	elements.contextSnapshot.hidden = false;
-	elements.contextValue.textContent = snapshot.contextWindow
-		? `Input ${formatNumber(snapshot.inputTokens)} of ${formatNumber(snapshot.contextWindow)} token context window`
-		: `Input ${formatNumber(snapshot.inputTokens)} · context window unavailable`;
+	const hasWindow = Boolean(snapshot.contextWindow);
+	elements.contextTrack.hidden = !hasWindow;
+	if (hasWindow) {
+		const ratio = Math.min(1, snapshot.inputTokens / snapshot.contextWindow);
+		elements.contextFill.style.width = `${(ratio * 100).toFixed(1)}%`;
+		elements.contextFill.classList.toggle("warn", ratio >= 0.75 && ratio < 0.9);
+		elements.contextFill.classList.toggle("danger", ratio >= 0.9);
+		elements.contextValue.textContent = `${formatNumber(snapshot.inputTokens)} / ${formatNumber(snapshot.contextWindow)} tokens`;
+	} else {
+		elements.contextValue.textContent = `${formatNumber(snapshot.inputTokens)} tokens · window unavailable`;
+	}
 }
 
 function formatUsage(usage) {

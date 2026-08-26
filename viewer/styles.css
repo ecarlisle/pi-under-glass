@@ -64,9 +64,31 @@ h1 { margin: 0; font-size: 26px; }
 .metrics div { min-width: 92px; }
 .metrics span { display: block; margin-bottom: 5px; color: var(--muted); font-size: 11px; text-transform: uppercase; }
 .metrics strong { color: var(--usage); font: 600 17px/1 var(--mono); }
-.metrics [data-metric="cost"] strong { color: var(--cost); font-size: 19px; }
-.context-snapshot { display: flex; gap: 12px; margin-top: 8px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); font-size: 12px; }
-.context-snapshot span { color: var(--muted); }
+.metrics-headline [data-metric="cost"] strong { color: var(--cost); font-size: 19px; }
+
+.metrics-detail {
+	gap: 5px 24px;
+	margin-top: 8px;
+	padding: 0 2px;
+	border: 0;
+	background: none;
+}
+.metrics-detail div { min-width: 0; }
+.metrics-detail span { margin-bottom: 0; font-size: 10px; }
+.metrics-detail strong { font-size: 13px; }
+/* Collapses the whole detail row when every field inside it is hidden (nothing to report). */
+.metrics-detail:not(:has(> :not([hidden]))) { display: none; }
+
+.context-gauge { margin-top: 8px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); }
+.context-gauge-label { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 7px; color: var(--muted); font-size: 12px; }
+.context-gauge-label #context-value { color: var(--text); font: 600 12px/1 var(--mono); }
+.context-gauge-track { height: 6px; border-radius: 999px; background: var(--border); overflow: hidden; }
+.context-gauge-fill { height: 100%; border-radius: 999px; background: var(--agent); width: 0; }
+.context-gauge-fill.warn { background: var(--activity); }
+.context-gauge-fill.danger { background: var(--error); }
+@media (prefers-reduced-motion: no-preference) {
+	.context-gauge-fill { transition: width 0.2s ease; }
+}
 
 .transcript { margin-top: 28px; border: 1px solid var(--border); border-radius: 6px; background: var(--panel); }
 .transcript h2 { margin: 0; padding: 14px 16px; border-bottom: 1px solid var(--border); font-size: 14px; }
@@ -236,7 +258,6 @@ body.show-timestamps .timestamp { display: inline; }
 @media (max-width: 560px) {
 	main { width: min(100% - 20px, 860px); padding-top: 24px; }
 	.metrics { gap: 16px 22px; }
-	.context-snapshot { flex-direction: column; gap: 4px; }
 	.event { grid-template-columns: 55px 1fr; padding-inline: 12px; }
 	.options-inner { width: min(100% - 20px, 860px); }
 	.options-body { flex-direction: column; gap: 14px; }
