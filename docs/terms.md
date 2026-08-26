@@ -14,6 +14,8 @@
 - **Reasoning tokens:** A provider-reported usage category. It does not necessarily correspond to the visible Thinking content.
 - **Event:** A timestamped lifecycle or streaming update about a Session, Agent run, Turn, Message, or tool execution.
 - **Context snapshot:** The latest model invocation's input-token usage compared with the model's context-window capacity. It is not cumulative usage.
+- **Session marker:** A compact, non-dialogue transcript separator for a meaningful state change, such as selecting a different model or Thinking level, or compacting Context.
+- **Context compaction:** Pi's replacement of older Context with a saved summary, followed by the recent Messages kept after the compaction boundary. The viewer records why it happened and the token estimate before compaction; the retained summary is available in a collapsed disclosure.
 
 ## UI hierarchy
 

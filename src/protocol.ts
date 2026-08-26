@@ -14,6 +14,12 @@ export interface ContextSnapshot {
 	contextWindow?: number;
 }
 
+export interface ModelIdentity {
+	provider: string;
+	id: string;
+	name: string;
+}
+
 export interface Metrics {
 	modelRequests: number;
 	usage: UsageValues;
@@ -23,6 +29,20 @@ export interface Metrics {
 
 export interface EventDataMap {
 	"session.started": { cwd: string };
+	"session.model.changed": {
+		model: ModelIdentity;
+		previousModel?: ModelIdentity;
+		source: "set" | "cycle" | "restore";
+		thinkingLevel?: string;
+	};
+	"session.thinking.changed": { level: string; previousLevel: string };
+	"session.compacted": {
+		reason: "manual" | "threshold" | "overflow";
+		tokensBefore: number;
+		summary: string;
+		fromExtension: boolean;
+		willRetry: boolean;
+	};
 	"run.systemPrompt": { runId: string; text: string };
 	"message.completed": { id: string; role: "user" | "assistant"; text: string; thinking?: string };
 	"message.started": { id: string; role: "assistant"; runId: string };

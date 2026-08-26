@@ -34,6 +34,7 @@ test("serves the viewer and authenticates WebSocket clients", async (context) =>
 	assert.match(viewer, /Timestamps/);
 	assert.match(viewer, /Thinking/);
 	assert.match(viewer, /System prompt/);
+	assert.match(viewer, /Compaction summaries/);
 
 	const unauthorized = await fetch(`http://${server.host}:${server.port}/`);
 	assert.equal(unauthorized.status, 401);
@@ -73,6 +74,9 @@ test("serves a debug fixture only when explicitly enabled and authenticated", as
 	assert.equal(sample.events.filter(({ event }: { event: { type: string } }) => event.type === "run.completed").length, 3);
 	assert.equal(sample.events.filter(({ event }: { event: { type: string } }) => event.type === "tool.started").length, 3);
 	assert.equal(sample.events.filter(({ event }: { event: { type: string } }) => event.type === "run.systemPrompt").length, 3);
+	assert.equal(sample.events.filter(({ event }: { event: { type: string } }) => event.type === "session.model.changed").length, 1);
+	assert.equal(sample.events.filter(({ event }: { event: { type: string } }) => event.type === "session.thinking.changed").length, 1);
+	assert.equal(sample.events.filter(({ event }: { event: { type: string } }) => event.type === "session.compacted").length, 1);
 	assert.ok(sample.events.some(({ event }: { event: { type: string } }) => event.type === "message.thinking.delta"));
 	assert.ok(
 		sample.events.some(

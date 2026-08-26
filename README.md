@@ -32,6 +32,7 @@ The command opens the viewer in your default browser and also displays its sessi
 - User and assistant messages, including live assistant text
 - The effective system prompt for an Agent run (hidden and collapsed by default)
 - Model thinking/reasoning traces (collapsed by default)
+- Compact session markers when the model or thinking level changes, and when Pi compacts context; retained compaction summaries stay collapsed unless opened
 - Input/output tokens and provider-reported cost
 - Tool calls with expandable args and results, duration, and error state
 - Session elapsed time
@@ -58,4 +59,4 @@ Inside Pi, run the viewer with deterministic sample activity:
 
 This opens an explicitly labeled sample-data view and plays `fixtures/sample-session.json` through the same browser event handler used for live Pi traffic. Edit that JSON file to exercise different message, tool, and usage states. Debug mode does not connect to Pi or retain session data. Refresh the page to restart the sample from the beginning.
 
-The wire format lives in `src/protocol.ts` and currently uses protocol version `2`.
+The wire format lives in `src/protocol.ts` and currently uses protocol version `2`. The session-state events are additive; older version-2 viewers safely ignore event types they do not recognize.

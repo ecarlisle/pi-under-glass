@@ -380,12 +380,43 @@
     {
       "afterMs": 60,
       "event": {
-        "v": 2, "seq": 43, "at": 3280, "sessionId": "sample-session", "type": "metrics",
+        "v": 2, "seq": 43, "at": 3280, "sessionId": "sample-session", "type": "session.model.changed",
+        "data": {
+          "model": { "provider": "anthropic", "id": "claude-sonnet-4-5", "name": "Claude Sonnet 4.5" },
+          "previousModel": { "provider": "openai", "id": "gpt-5", "name": "GPT-5" },
+          "source": "set",
+          "thinkingLevel": "high"
+        }
+      }
+    },
+    {
+      "afterMs": 60,
+      "event": {
+        "v": 2, "seq": 44, "at": 3340, "sessionId": "sample-session", "type": "session.thinking.changed",
+        "data": { "level": "medium", "previousLevel": "high" }
+      }
+    },
+    {
+      "afterMs": 60,
+      "event": {
+        "v": 2, "seq": 45, "at": 3400, "sessionId": "sample-session", "type": "session.compacted",
+        "data": {
+          "reason": "threshold",
+          "tokensBefore": 96000,
+          "summary": "## Retained project state\n\n- Pi Under Glass is a local-first TypeScript extension.\n- The viewer shows messages, thinking, tools, and usage.\n- Validation was green after the latest focused changes.",
+          "fromExtension": false,
+          "willRetry": false
+        }
+      }
+    },
+    {
+      "afterMs": 60,
+      "event": {
+        "v": 2, "seq": 46, "at": 3460, "sessionId": "sample-session", "type": "metrics",
         "data": {
           "modelRequests": 5,
           "usage": { "inputTokens": 17000, "outputTokens": 865, "reasoningTokens": 380, "cacheReadTokens": 6000, "cacheWriteTokens": 680, "cost": 0.0384 },
-          "tools": 3,
-          "latestContext": { "inputTokens": 4600, "contextWindow": 128000 }
+          "tools": 3
         }
       }
     }

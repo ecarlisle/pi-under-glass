@@ -19,3 +19,35 @@ test("represents a system prompt as Agent-run configuration", () => {
 	const event = createEvent("session-1", 8, "run.systemPrompt", { runId: "run-1", text: "Be concise." }, 1235);
 	assert.deepEqual(event.data, { runId: "run-1", text: "Be concise." });
 });
+
+test("represents concise session-state changes", () => {
+	const model = createEvent("session-1", 9, "session.model.changed", {
+		model: { provider: "anthropic", id: "claude-sonnet-4", name: "Claude Sonnet 4" },
+		previousModel: { provider: "openai", id: "gpt-5", name: "GPT-5" },
+		source: "set",
+		thinkingLevel: "high",
+	});
+	assert.equal(model.data.model.id, "claude-sonnet-4");
+	assert.equal(model.data.thinkingLevel, "high");
+
+	const thinking = createEvent("session-1", 10, "session.thinking.changed", {
+		level: "medium",
+		previousLevel: "high",
+	});
+	assert.deepEqual(thinking.data, { level: "medium", previousLevel: "high" });
+
+	const compacted = createEvent("session-1", 11, "session.compacted", {
+		reason: "threshold",
+		tokensBefore: 92_000,
+		summary: "The project is local-first and validation is green.",
+		fromExtension: false,
+		willRetry: false,
+	});
+	assert.deepEqual(compacted.data, {
+		reason: "threshold",
+		tokensBefore: 92_000,
+		summary: "The project is local-first and validation is green.",
+		fromExtension: false,
+		willRetry: false,
+	});
+});

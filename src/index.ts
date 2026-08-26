@@ -8,6 +8,7 @@ import {
 	type ContextSnapshot,
 	type EventDataMap,
 	type Metrics,
+	type ModelIdentity,
 } from "./protocol.js";
 import { startViewerServer, type ViewerServer } from "./server.js";
 import {
@@ -33,7 +34,15 @@ interface PiContext {
 	cwd: string;
 	mode: "tui" | "rpc" | "json" | "print";
 	ui: { notify(message: string, type?: "info" | "warning" | "error"): void };
-	model?: { contextWindow?: number };
+	model?: PiModel;
+	thinkingLevel?: string;
+}
+
+interface PiModel {
+	provider: string;
+	id: string;
+	name: string;
+	contextWindow?: number;
 }
 
 interface ActiveRun {
@@ -154,6 +163,52 @@ export default function piUnderGlass(pi: PiApi): void {
 		const run = beginRun();
 		if (event.systemPrompt) publish("run.systemPrompt", { runId: run.id, text: event.systemPrompt });
 	});
+
+	pi.on(
+		"model_select",
+		(
+			event: {
+				model: PiModel;
+				previousModel?: PiModel;
+				source: "set" | "cycle" | "restore";
+			},
+			context,
+		) => {
+			publish("session.model.changed", {
+				model: modelIdentity(event.model),
+				...(event.previousModel ? { previousModel: modelIdentity(event.previousModel) } : {}),
+				source: event.source,
+				...(context.thinkingLevel ? { thinkingLevel: context.thinkingLevel } : {}),
+			});
+		},
+	);
+
+	pi.on("thinking_level_select", (event: { level: string; previousLevel: string }) => {
+		publish("session.thinking.changed", {
+			level: event.level,
+			previousLevel: event.previousLevel,
+		});
+	});
+
+	pi.on(
+		"session_compact",
+		(event: {
+			compactionEntry: { tokensBefore: number; summary: string };
+			fromExtension: boolean;
+			reason: "manual" | "threshold" | "overflow";
+			willRetry: boolean;
+		}) => {
+			latestContext = undefined;
+			publish("session.compacted", {
+				reason: event.reason,
+				tokensBefore: event.compactionEntry.tokensBefore,
+				summary: event.compactionEntry.summary,
+				fromExtension: event.fromExtension,
+				willRetry: event.willRetry,
+			});
+			publish("metrics", metrics());
+		},
+	);
 
 	pi.on("message_start", (event: { message: Message }) => {
 		if (event.message.role === "user") {
@@ -300,6 +355,10 @@ function messageText(message: Message): string {
 		.filter((part) => part.type === "text")
 		.map((part) => part.text ?? "")
 		.join("");
+}
+
+function modelIdentity(model: PiModel): ModelIdentity {
+	return { provider: model.provider, id: model.id, name: model.name };
 }
 
 function messageThinking(message: Message): string {

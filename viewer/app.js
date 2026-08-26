@@ -21,6 +21,7 @@ const elements = {
 	showSystemPrompt: document.querySelector("#show-system-prompt"),
 	expandThinking: document.querySelector("#expand-thinking"),
 	expandTools: document.querySelector("#expand-tools"),
+	expandCompactions: document.querySelector("#expand-compactions"),
 };
 
 const parameters = new URLSearchParams(location.search);
@@ -53,7 +54,7 @@ const contentOptions = [
 	elements.showThinking,
 	elements.showSystemPrompt,
 ];
-const expandOptions = [elements.expandThinking, elements.expandTools];
+const expandOptions = [elements.expandThinking, elements.expandTools, elements.expandCompactions];
 
 restoreOptionPrefs();
 
@@ -69,6 +70,10 @@ elements.expandThinking.addEventListener("change", () => {
 });
 elements.expandTools.addEventListener("change", () => {
 	setDetailsOpen(".tool-block", elements.expandTools.checked);
+	saveOptionPrefs();
+});
+elements.expandCompactions.addEventListener("change", () => {
+	setDetailsOpen(".compaction-summary", elements.expandCompactions.checked);
 	saveOptionPrefs();
 });
 elements.optionsDetails.addEventListener("toggle", saveOptionPrefs);
@@ -193,6 +198,15 @@ function handle(event) {
 		case "metrics":
 			handleMetrics(event);
 			break;
+		case "session.model.changed":
+			handleModelChanged(event);
+			break;
+		case "session.thinking.changed":
+			handleThinkingChanged(event);
+			break;
+		case "session.compacted":
+			handleCompacted(event);
+			break;
 		case "run.systemPrompt":
 			handleSystemPrompt(event);
 			break;
@@ -230,6 +244,49 @@ function handleHello(event) {
 
 function handleMetrics(event) {
 	updateMetrics(event.data);
+}
+
+function handleModelChanged(event) {
+	const previous = event.data.previousModel ? formatModel(event.data.previousModel) : undefined;
+	const current = formatModel(event.data.model);
+	const transition = previous ? `${previous} → ${current}` : current;
+	const thinking = event.data.thinkingLevel ? ` · Thinking ${formatStateValue(event.data.thinkingLevel)}` : "";
+	createSessionMarker("model", event.data.source === "restore" ? "Model restored" : "Model", `${transition}${thinking}`, event.at);
+}
+
+function handleThinkingChanged(event) {
+	createSessionMarker(
+		"thinking",
+		"Thinking",
+		`${formatStateValue(event.data.previousLevel)} → ${formatStateValue(event.data.level)}`,
+		event.at,
+	);
+}
+
+function handleCompacted(event) {
+	const reasons = {
+		manual: "Manual",
+		threshold: "Automatic · context threshold",
+		overflow: "Overflow recovery",
+	};
+	const retry = event.data.willRetry ? " · retrying interrupted turn" : "";
+	createSessionMarker(
+		"compaction",
+		"Context compacted",
+		`${reasons[event.data.reason] ?? "Automatic"} · ${formatNumber(event.data.tokensBefore)} tokens before${retry}`,
+		event.at,
+		event.data.summary,
+	);
+	elements.contextSnapshot.hidden = true;
+}
+
+function formatModel(model) {
+	const identifier = `${model.provider}/${model.id}`;
+	return model.name && model.name !== model.id ? `${model.name} (${identifier})` : identifier;
+}
+
+function formatStateValue(value) {
+	return value ? `${value.charAt(0).toUpperCase()}${value.slice(1)}` : "Unknown";
 }
 
 function handleMessageStarted(event) {
@@ -446,7 +503,8 @@ function truncateText(text, limit = TOOL_TEXT_LIMIT) {
 function ensureThinkingRow(messageId) {
 	const content = messages.get(messageId);
 	const block = content?.closest(".message-block");
-	if (!block) return undefined;
+	const stack = block?.querySelector(".response-stack");
+	if (!block || !stack) return undefined;
 	let row = thinkingRows.get(messageId);
 	if (!row) {
 		const details = document.createElement("details");
@@ -460,7 +518,7 @@ function ensureThinkingRow(messageId) {
 		const body = document.createElement("div");
 		body.className = "thinking-content";
 		details.append(summary, copyRow, body);
-		block.insertBefore(details, content);
+		stack.insertBefore(details, content);
 		row = { details, body, rawText: "" };
 		thinkingRows.set(messageId, row);
 	}
@@ -471,14 +529,49 @@ function createMessage(id, role, text, at) {
 	const group = createSpeakerGroup(role);
 	const content = createBlock(
 		group,
-		role === "assistant" ? "Text" : "",
+		role === "assistant" ? "Response" : "",
 		text,
-		"",
+		role === "assistant" ? "response-block" : "",
 		at,
 		role === "assistant" ? "text" : undefined,
 	);
 	messages.set(id, content);
 	return content;
+}
+
+function createSessionMarker(kind, title, detail, at, expandedText) {
+	elements.empty?.remove();
+	const row = document.createElement("article");
+	row.className = `event session-event session-event--${kind}`;
+	const label = document.createElement("div");
+	label.className = "label";
+	label.textContent = "Session";
+	const marker = document.createElement("div");
+	marker.className = "session-marker";
+	const markerTitle = document.createElement("span");
+	markerTitle.className = "session-marker-title";
+	markerTitle.textContent = title;
+	const markerDetail = document.createElement("span");
+	markerDetail.className = "session-marker-detail";
+	markerDetail.textContent = detail;
+	marker.append(markerTitle, markerDetail);
+	if (kind === "compaction") marker.append(createTimestamp(at));
+	if (expandedText) {
+		const details = document.createElement("details");
+		details.className = "compaction-summary";
+		details.open = elements.expandCompactions.checked;
+		const summary = document.createElement("summary");
+		summary.textContent = "Retained context summary";
+		const content = document.createElement("div");
+		content.className = "compaction-summary-content";
+		content.innerHTML = renderMarkdown(expandedText);
+		details.append(summary, content);
+		marker.append(details);
+	}
+	row.append(label, marker);
+	elements.events.append(row);
+	lastAgentGroup = undefined;
+	scrollToLatest();
 }
 
 function createSpeakerGroup(role) {
@@ -567,11 +660,17 @@ function createBlock(group, type, text, className = "", at, iconKind) {
 		typeLabel.append(type);
 		block.append(typeLabel);
 	}
-	block.append(createTimestamp(at));
 	const content = document.createElement("div");
 	content.className = "content";
 	content.textContent = text;
-	block.append(content);
+	if (block.classList.contains("response-block")) {
+		const stack = document.createElement("div");
+		stack.className = "response-stack";
+		stack.append(content);
+		block.append(stack);
+	} else {
+		block.append(content);
+	}
 	group.append(block);
 	return content;
 }
