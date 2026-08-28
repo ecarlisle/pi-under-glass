@@ -135,43 +135,63 @@ function renderSessionFacts() {
 function renderTurnList() {
 	elements.turnList.replaceChildren();
 	if (state.turnOrder.length === 0) {
+		const row = document.createElement("tr");
+		const cell = document.createElement("td");
+		cell.colSpan = 7;
 		const empty = document.createElement("p");
 		empty.className = "empty";
 		empty.textContent = "Send Pi a prompt to see the first turn.";
-		elements.turnList.append(empty);
+		cell.append(empty);
+		row.append(cell);
+		elements.turnList.append(row);
 		return;
 	}
 	state.turnOrder.forEach((turnId, index) => {
 		const turn = state.turns[turnId];
-		const row = document.createElement("article");
+		const turnNumber = index + 1;
+		const row = document.createElement("tr");
 		row.className = `turn-row${state.selectedTurnId === turnId ? " selected" : ""}`;
-		row.tabIndex = 0;
-		row.setAttribute("role", "button");
-		row.setAttribute("aria-pressed", String(state.selectedTurnId === turnId));
 		row.addEventListener("click", () => chooseTurn(turnId));
-		row.addEventListener("keydown", (event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); chooseTurn(turnId); } });
-		const heading = document.createElement("div");
-		heading.className = "turn-row-heading";
-		const label = document.createElement("strong");
-		label.textContent = `Turn ${index + 1}`;
-		const excerpt = document.createElement("span");
-		excerpt.textContent = excerptText(turn.prompt || "Prompt unavailable", 72);
-		heading.append(label, excerpt);
-		const facts = document.createElement("div");
-		facts.className = "turn-row-facts";
-		facts.append(factBadge(statusLabel(turn.status), turn.status === "active" ? "active" : turn.status === "interrupted" ? "error" : "neutral"));
-		facts.append(factBadge(formatDuration(turn.durationMs ?? Math.max(0, Date.now() - turn.startedAt)), "neutral"));
-		facts.append(factBadge(`${turn.toolCount ?? Object.keys(turn.tools ?? {}).length} tools`, "neutral"));
-		facts.append(factBadge(`${turn.errorCount ?? 0} errors`, turn.errorCount > 0 ? "error" : "neutral"));
-		row.append(heading, renderRibbon(turn), facts);
+
+		const turnCell = document.createElement("td");
+		const selectButton = document.createElement("button");
+		selectButton.className = "turn-select";
+		selectButton.type = "button";
+		selectButton.textContent = String(turnNumber);
+		selectButton.setAttribute("aria-label", `Select Turn ${turnNumber}`);
+		if (state.selectedTurnId === turnId) selectButton.setAttribute("aria-current", "true");
+		selectButton.addEventListener("click", (event) => { event.stopPropagation(); chooseTurn(turnId); });
+		turnCell.append(selectButton);
+
+		const promptCell = document.createElement("td");
+		promptCell.className = "turn-prompt-cell";
+		promptCell.textContent = excerptText(turn.prompt || "Prompt unavailable", 21);
+		promptCell.title = turn.prompt || "Prompt unavailable";
+
+		const visualizationCell = document.createElement("td");
+		visualizationCell.className = "turn-visualization-cell";
+		visualizationCell.setAttribute("aria-label", `Turn ${turnNumber} visualization`);
+		visualizationCell.append(renderRibbon(turn, turnNumber));
+
+		const statusCell = document.createElement("td");
+		statusCell.append(factBadge(statusLabel(turn.status), turn.status === "active" ? "active" : turn.status === "interrupted" ? "error" : "neutral"));
+		const timeCell = document.createElement("td");
+		timeCell.textContent = formatDuration(turn.durationMs ?? Math.max(0, Date.now() - turn.startedAt));
+		const toolsCell = document.createElement("td");
+		toolsCell.textContent = formatNumber(turn.toolCount ?? Object.keys(turn.tools ?? {}).length);
+		const errorsCell = document.createElement("td");
+		errorsCell.className = turn.errorCount > 0 ? "turn-error-count" : "";
+		errorsCell.textContent = formatNumber(turn.errorCount ?? 0);
+
+		row.append(turnCell, promptCell, visualizationCell, statusCell, timeCell, toolsCell, errorsCell);
 		elements.turnList.append(row);
 	});
 }
 
-function renderRibbon(turn) {
+function renderRibbon(turn, turnNumber) {
 	const ribbon = document.createElement("div");
 	ribbon.className = "turn-ribbon";
-	ribbon.setAttribute("aria-label", "Turn event ribbon");
+	ribbon.setAttribute("aria-label", `Turn ${turnNumber} event visualization`);
 	for (const segment of buildRibbonSegments(turn)) {
 		const item = document.createElement("span");
 		item.className = `ribbon-segment ribbon-segment--${segment.type}`;

@@ -34,7 +34,22 @@
 						<span><i class="legend-response"></i>Response</span>
 					</div>
 				</div>
-				<div id="turn-list" class="turn-list"></div>
+				<div class="turn-table-wrap">
+					<table class="turn-table">
+						<thead>
+							<tr>
+								<th scope="col">Turn</th>
+								<th scope="col">Prompt</th>
+								<th scope="col" class="visualization-column" aria-label="Visualization"><span class="visually-hidden">Visualization</span></th>
+								<th scope="col">Status</th>
+								<th scope="col">Time</th>
+								<th scope="col">Tools</th>
+								<th scope="col">Errors</th>
+							</tr>
+						</thead>
+						<tbody id="turn-list"></tbody>
+					</table>
+				</div>
 			</section>
 
 			<section class="detail-panel" aria-labelledby="selected-title">
