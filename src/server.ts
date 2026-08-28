@@ -10,6 +10,8 @@ const VIEWER_DIR = join(dirname(fileURLToPath(import.meta.url)), "../viewer");
 const ASSETS = new Map([
 	["/", { file: "index.html", contentType: "text/html; charset=utf-8" }],
 	["/app.js", { file: "app.js", contentType: "text/javascript; charset=utf-8" }],
+	["/state.js", { file: "state.js", contentType: "text/javascript; charset=utf-8" }],
+	["/transcript.js", { file: "transcript.js", contentType: "text/javascript; charset=utf-8" }],
 	["/styles.css", { file: "styles.css", contentType: "text/css; charset=utf-8" }],
 ]);
 
@@ -90,7 +92,24 @@ export async function startViewerServer(options: ViewerServerOptions): Promise<V
 			}
 		},
 		async close() {
-			for (const socket of sockets) socket.terminate();
+			await Promise.all(
+				[...sockets].map(
+					(socket) =>
+						new Promise<void>((resolve) => {
+							if (socket.readyState === WebSocket.CLOSED) return resolve();
+							const finish = () => resolve();
+							const timeout = setTimeout(() => {
+								socket.terminate();
+								finish();
+							}, 200);
+							socket.once("close", () => {
+								clearTimeout(timeout);
+								finish();
+							});
+							socket.close(1000, "Session ended");
+						}),
+				),
+			);
 			await new Promise<void>((resolve) => webSockets.close(() => resolve()));
 			await closeHttpServer(http);
 		},

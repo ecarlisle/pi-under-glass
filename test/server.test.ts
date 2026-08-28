@@ -28,13 +28,19 @@ test("serves the viewer and authenticates WebSocket clients", async (context) =>
 	assert.match(authorized.headers.get("content-security-policy") ?? "", /connect-src 'self'/);
 	const viewer = await authorized.text();
 	assert.match(viewer, /Pi Under Glass/);
-	assert.match(viewer, /Usage details/);
+	assert.match(viewer, /Session overview/);
+	assert.match(viewer, /Selected turn/);
+	assert.match(viewer, /Outside tools/);
+	assert.match(viewer, /Evidence options/);
+	assert.match(viewer, /> Usage</);
 	assert.match(viewer, /Tool input/);
 	assert.match(viewer, /Tool results/);
 	assert.match(viewer, /Timestamps/);
-	assert.match(viewer, /Thinking/);
+	assert.match(viewer, /Agent processing/);
 	assert.match(viewer, /System prompt/);
-	assert.match(viewer, /Compaction summaries/);
+	assert.match(viewer, /Compactions/);
+	assert.equal((await fetch(`http://${server.host}:${server.port}/state.js`)).status, 200);
+	assert.equal((await fetch(`http://${server.host}:${server.port}/transcript.js`)).status, 200);
 
 	const unauthorized = await fetch(`http://${server.host}:${server.port}/`);
 	assert.equal(unauthorized.status, 401);
@@ -150,4 +156,18 @@ test("forwards thinking deltas and completed thinking to viewers", async (contex
 	);
 	const [completedMessage] = await completed;
 	assert.equal(JSON.parse(String(completedMessage)).data.thinking, "Reasoned step by step.");
+});
+
+test("delivers the terminal session event before closing sockets", async () => {
+	const token = "ending-token";
+	const server = await startViewerServer({ token, hello });
+	const socket = new WebSocket(`ws://${server.host}:${server.port}/events?token=${token}`);
+	await once(socket, "message");
+
+	const terminal = once(socket, "message");
+	server.publish(createEvent("session-1", 1, "session.ended", { endedAt: 42 }));
+	const closing = server.close();
+	const [payload] = await terminal;
+	assert.equal(JSON.parse(String(payload)).type, "session.ended");
+	await closing;
 });
