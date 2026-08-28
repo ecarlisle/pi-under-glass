@@ -27,6 +27,67 @@ export interface Metrics {
 	latestContext?: ContextSnapshot;
 }
 
+export type SessionTurnStatus = "active" | "completed" | "interrupted";
+
+export interface TurnToolFact {
+	id: string;
+	name: string;
+	startedAt: number;
+	endedAt?: number;
+	durationMs?: number;
+	isError?: boolean;
+}
+
+export interface TurnFacts {
+	id: string;
+	status: SessionTurnStatus;
+	startedAt: number;
+	endedAt?: number;
+	durationMs?: number;
+	prompt?: string;
+	agentReportedExcerpt?: string;
+	responseStartedAt?: number;
+	responseEndedAt?: number;
+	model?: ModelIdentity;
+	thinkingLevel?: string;
+	modelRequests: number;
+	usage: UsageValues;
+	toolCount: number;
+	errorCount: number;
+	tools: TurnToolFact[];
+	contextStart?: ContextSnapshot;
+	contextEnd?: ContextSnapshot;
+}
+
+export interface SessionMarkerFact {
+	type: "compaction" | "model" | "thinking";
+	at: number;
+	turnId?: string;
+	detail: string;
+	summary?: string;
+}
+
+export interface EvidenceMetadata {
+	id: string;
+	type: string;
+	at: number;
+	turnId?: string;
+	label?: string;
+	isError?: boolean;
+	durationMs?: number;
+}
+
+export interface SessionSnapshot {
+	sequence: number;
+	model?: ModelIdentity;
+	thinkingLevel?: string;
+	currentTurn?: TurnFacts;
+	completedTurns: TurnFacts[];
+	contextPoints: Array<{ at: number; turnId?: string; snapshot: ContextSnapshot }>;
+	markers: SessionMarkerFact[];
+	evidence: EvidenceMetadata[];
+}
+
 export interface EventDataMap {
 	"session.started": { cwd: string };
 	"session.model.changed": {
@@ -43,9 +104,23 @@ export interface EventDataMap {
 		fromExtension: boolean;
 		willRetry: boolean;
 	};
-	"run.systemPrompt": { runId: string; text: string };
-	"message.completed": { id: string; role: "user" | "assistant"; text: string; thinking?: string };
-	"message.started": { id: string; role: "assistant"; runId: string };
+	"session.ended": { endedAt: number };
+	"turn.started": {
+		id: string;
+		prompt: string;
+		model?: ModelIdentity;
+		thinkingLevel?: string;
+	};
+	"turn.completed": TurnFacts;
+	"run.systemPrompt": { runId: string; text: string; sessionTurnId?: string };
+	"message.completed": {
+		id: string;
+		role: "user" | "assistant";
+		text: string;
+		thinking?: string;
+		sessionTurnId?: string;
+	};
+	"message.started": { id: string; role: "assistant"; runId: string; sessionTurnId?: string };
 	"message.delta": { id: string; text: string };
 	"message.thinking.delta": { id: string; text: string };
 	"turn.usage": {
@@ -57,14 +132,16 @@ export interface EventDataMap {
 		durationMs?: number;
 	};
 	"run.completed": { id: string; modelRequests: number; usage: UsageValues };
-	"tool.started": { id: string; name: string; args?: unknown; turnId?: string };
+	"tool.started": { id: string; name: string; args?: unknown; turnId?: string; sessionTurnId?: string };
 	"tool.completed": {
 		id: string;
 		name: string;
 		isError: boolean;
 		durationMs: number;
+		durationKnown?: boolean;
 		result?: unknown;
 		turnId?: string;
+		sessionTurnId?: string;
 	};
 	metrics: Metrics;
 }
@@ -87,6 +164,7 @@ export interface HelloMessage {
 	startedAt: number;
 	cwd: string;
 	metrics: Metrics;
+	snapshot?: SessionSnapshot;
 }
 
 export function createEvent<K extends keyof EventDataMap>(

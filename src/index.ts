@@ -7,8 +7,14 @@ import {
 	PROTOCOL_VERSION,
 	type ContextSnapshot,
 	type EventDataMap,
+	type EvidenceMetadata,
 	type Metrics,
 	type ModelIdentity,
+	type SessionMarkerFact,
+	type SessionSnapshot,
+	type SessionTurnStatus,
+	type TurnFacts,
+	type TurnToolFact,
 } from "./protocol.js";
 import { startViewerServer, type ViewerServer } from "./server.js";
 import {
@@ -45,15 +51,26 @@ interface PiModel {
 	contextWindow?: number;
 }
 
-interface ActiveRun {
+interface ActiveSessionTurn {
 	id: string;
+	startedAt: number;
+	prompt: string;
 	usage: UsageAccumulator;
+	tools: TurnToolFact[];
+	errorCount: number;
+	assistantText?: string;
+	responseStartedAt?: number;
+	responseEndedAt?: number;
+	model?: ModelIdentity;
+	thinkingLevel?: string;
+	contextStart?: ContextSnapshot;
+	contextEnd?: ContextSnapshot;
 }
 
-interface ActiveTurn {
+interface ActiveInvocation {
 	id: string;
-	runId: string;
-	run: ActiveRun;
+	sessionTurnId: string;
+	sessionTurn: ActiveSessionTurn;
 	messageId: string | undefined;
 	startedAt: number;
 }
@@ -77,22 +94,31 @@ export default function piUnderGlass(pi: PiApi): void {
 	const token = randomBytes(24).toString("base64url");
 	const startedAt = Date.now();
 	const sessionUsage = createUsageAccumulator();
-	const toolStarts = new Map<string, { start: number; turnId?: string }>();
+	const toolStarts = new Map<string, { start: number; invocationId?: string; sessionTurnId?: string }>();
+	const completedTurns: TurnFacts[] = [];
+	const contextPoints: SessionSnapshot["contextPoints"] = [];
+	const markers: SessionMarkerFact[] = [];
+	const evidence: EvidenceMetadata[] = [];
 	let cwd = process.cwd();
 	let sequence = 0;
 	let messageSequence = 0;
-	let runSequence = 0;
-	let turnSequence = 0;
+	let sessionTurnSequence = 0;
+	let invocationSequence = 0;
 	let tools = 0;
 	let latestContext: ContextSnapshot | undefined;
-	let activeRun: ActiveRun | undefined;
-	let activeTurn: ActiveTurn | undefined;
+	let currentModel: ModelIdentity | undefined;
+	let currentThinkingLevel: string | undefined;
+	let activeSessionTurn: ActiveSessionTurn | undefined;
+	let activeInvocation: ActiveInvocation | undefined;
 	let activeAssistantId: string | undefined;
 	let server: ViewerServer | undefined;
 	let starting: Promise<ViewerServer> | undefined;
 
 	const publish = <K extends keyof EventDataMap>(type: K, data: EventDataMap[K]) => {
-		server?.publish(createEvent(sessionId, ++sequence, type, data));
+		if (!server) return;
+		const event = createEvent(sessionId, ++sequence, type, data);
+		recordEvidence(event.type, event.data, event.at);
+		server.publish(event);
 	};
 
 	const metrics = (): Metrics => ({
@@ -102,25 +128,100 @@ export default function piUnderGlass(pi: PiApi): void {
 		...(latestContext ? { latestContext } : {}),
 	});
 
-	const finishRun = () => {
-		if (!activeRun) return;
-		if (activeRun.usage.requests > 0) {
+	const turnFacts = (turn: ActiveSessionTurn, status: SessionTurnStatus, endedAt?: number): TurnFacts => ({
+		id: turn.id,
+		status,
+		startedAt: turn.startedAt,
+		...(endedAt !== undefined ? { endedAt, durationMs: Math.max(0, endedAt - turn.startedAt) } : {}),
+		...(turn.prompt ? { prompt: turn.prompt } : {}),
+		...(turn.assistantText ? { agentReportedExcerpt: textExcerpt(turn.assistantText, 240) } : {}),
+		...(turn.responseStartedAt !== undefined ? { responseStartedAt: turn.responseStartedAt } : {}),
+		...(turn.responseEndedAt !== undefined ? { responseEndedAt: turn.responseEndedAt } : {}),
+		...(turn.model ? { model: turn.model } : {}),
+		...(turn.thinkingLevel ? { thinkingLevel: turn.thinkingLevel } : {}),
+		modelRequests: turn.usage.requests,
+		usage: usageRollup(turn.usage),
+		toolCount: turn.tools.length,
+		errorCount: turn.errorCount,
+		tools: turn.tools.map((tool) => ({ ...tool })),
+		...(turn.contextStart ? { contextStart: turn.contextStart } : {}),
+		...(turn.contextEnd ? { contextEnd: turn.contextEnd } : {}),
+	});
+
+	const finishSessionTurn = (status: SessionTurnStatus = "completed") => {
+		if (!activeSessionTurn) return;
+		const endedAt = Date.now();
+		const facts = turnFacts(activeSessionTurn, status, endedAt);
+		publish("turn.completed", facts);
+		// Preserve the legacy technical Agent-run summary for older v2 viewers.
+		if (facts.modelRequests > 0) {
 			publish("run.completed", {
-				id: activeRun.id,
-				modelRequests: activeRun.usage.requests,
-				usage: usageRollup(activeRun.usage),
+				id: facts.id,
+				modelRequests: facts.modelRequests,
+				usage: facts.usage,
 			});
 		}
-		activeRun = undefined;
+		completedTurns.push(facts);
+		if (completedTurns.length > 100) completedTurns.shift();
+		activeSessionTurn = undefined;
 	};
 
-	const beginRun = (): ActiveRun => {
-		finishRun();
-		activeRun = { id: `run-${++runSequence}`, usage: createUsageAccumulator() };
-		return activeRun;
+	const beginSessionTurn = (prompt: string): ActiveSessionTurn => {
+		if (activeSessionTurn) finishSessionTurn("interrupted");
+		activeSessionTurn = {
+			id: `turn-${++sessionTurnSequence}`,
+			startedAt: Date.now(),
+			prompt,
+			usage: createUsageAccumulator(),
+			tools: [],
+			errorCount: 0,
+			...(currentModel ? { model: currentModel } : {}),
+			...(currentThinkingLevel ? { thinkingLevel: currentThinkingLevel } : {}),
+			...(latestContext ? { contextStart: latestContext } : {}),
+		};
+		publish("turn.started", {
+			id: activeSessionTurn.id,
+			prompt,
+			...(currentModel ? { model: currentModel } : {}),
+			...(currentThinkingLevel ? { thinkingLevel: currentThinkingLevel } : {}),
+		});
+		return activeSessionTurn;
 	};
 
-	const currentRun = (): ActiveRun => activeRun ?? beginRun();
+	const currentSessionTurn = (): ActiveSessionTurn => activeSessionTurn ?? beginSessionTurn("");
+
+	const snapshot = (): SessionSnapshot => ({
+		sequence,
+		...(currentModel ? { model: currentModel } : {}),
+		...(currentThinkingLevel ? { thinkingLevel: currentThinkingLevel } : {}),
+		...(activeSessionTurn ? { currentTurn: turnFacts(activeSessionTurn, "active") } : {}),
+		completedTurns: completedTurns.map((turn) => ({ ...turn, tools: turn.tools.map((tool) => ({ ...tool })) })),
+		contextPoints: contextPoints.map((point) => ({ ...point, snapshot: { ...point.snapshot } })),
+		markers: markers.map((marker) => ({ ...marker })),
+		evidence: evidence.map((item) => ({ ...item })),
+	});
+
+	const recordEvidence = (type: keyof EventDataMap, rawData: EventDataMap[keyof EventDataMap], at: number) => {
+		if (type === "metrics" || type === "message.delta" || type === "message.thinking.delta") return;
+		const data = rawData as Record<string, unknown>;
+		const sessionTurnId =
+			type === "turn.started" || type === "turn.completed"
+				? String(data.id)
+				: typeof data.sessionTurnId === "string"
+					? data.sessionTurnId
+					: activeSessionTurn?.id;
+		const item: EvidenceMetadata = {
+			id: `${sequence}:${type}:${typeof data.id === "string" ? data.id : "event"}`,
+			type,
+			at,
+			...(sessionTurnId ? { turnId: sessionTurnId } : {}),
+			...(typeof data.name === "string" ? { label: data.name } : {}),
+			...(typeof data.isError === "boolean" ? { isError: data.isError } : {}),
+			...(typeof data.durationMs === "number" ? { durationMs: data.durationMs } : {}),
+		};
+		evidence.push(item);
+		if (evidence.length > 250) evidence.shift();
+	};
 
 	const ensureServer = async (context: PiContext): Promise<ViewerServer> => {
 		cwd = context.cwd;
@@ -137,6 +238,7 @@ export default function piUnderGlass(pi: PiApi): void {
 					startedAt,
 					cwd,
 					metrics: metrics(),
+					snapshot: snapshot(),
 				}),
 			}).then((started) => {
 				server = started;
@@ -152,6 +254,8 @@ export default function piUnderGlass(pi: PiApi): void {
 	};
 
 	pi.on("session_start", async (_event, context) => {
+		currentModel = context.model ? modelIdentity(context.model) : undefined;
+		currentThinkingLevel = context.thinkingLevel;
 		try {
 			await ensureServer(context);
 			publish("session.started", { cwd });
@@ -161,8 +265,10 @@ export default function piUnderGlass(pi: PiApi): void {
 	});
 
 	pi.on("before_agent_start", (event: { systemPrompt: string }) => {
-		const run = beginRun();
-		if (event.systemPrompt) publish("run.systemPrompt", { runId: run.id, text: event.systemPrompt });
+		const turn = currentSessionTurn();
+		if (event.systemPrompt) {
+			publish("run.systemPrompt", { runId: turn.id, sessionTurnId: turn.id, text: event.systemPrompt });
+		}
 	});
 
 	pi.on(
@@ -175,20 +281,37 @@ export default function piUnderGlass(pi: PiApi): void {
 			},
 			context,
 		) => {
+			currentModel = modelIdentity(event.model);
+			currentThinkingLevel = context.thinkingLevel;
 			publish("session.model.changed", {
-				model: modelIdentity(event.model),
+				model: currentModel,
 				...(event.previousModel ? { previousModel: modelIdentity(event.previousModel) } : {}),
 				source: event.source,
 				...(context.thinkingLevel ? { thinkingLevel: context.thinkingLevel } : {}),
 			});
+			markers.push({
+				type: "model",
+				at: Date.now(),
+				...(activeSessionTurn ? { turnId: activeSessionTurn.id } : {}),
+				detail: `${event.previousModel ? `${event.previousModel.provider}/${event.previousModel.id} → ` : ""}${event.model.provider}/${event.model.id}`,
+			});
+			if (markers.length > 100) markers.shift();
 		},
 	);
 
 	pi.on("thinking_level_select", (event: { level: string; previousLevel: string }) => {
+		currentThinkingLevel = event.level;
 		publish("session.thinking.changed", {
 			level: event.level,
 			previousLevel: event.previousLevel,
 		});
+		markers.push({
+			type: "thinking",
+			at: Date.now(),
+			...(activeSessionTurn ? { turnId: activeSessionTurn.id } : {}),
+			detail: `${event.previousLevel} → ${event.level}`,
+		});
+		if (markers.length > 100) markers.shift();
 	});
 
 	pi.on(
@@ -207,35 +330,58 @@ export default function piUnderGlass(pi: PiApi): void {
 				fromExtension: event.fromExtension,
 				willRetry: event.willRetry,
 			});
+			markers.push({
+				type: "compaction",
+				at: Date.now(),
+				...(activeSessionTurn ? { turnId: activeSessionTurn.id } : {}),
+				detail: `${event.reason} · ${event.compactionEntry.tokensBefore} tokens before`,
+				summary: event.compactionEntry.summary,
+			});
+			if (markers.length > 100) markers.shift();
 			publish("metrics", metrics());
 		},
 	);
 
 	pi.on("message_start", (event: { message: Message }) => {
 		if (event.message.role === "user") {
-			if (!activeRun) beginRun();
+			const turn = beginSessionTurn(messageText(event.message));
 			publish("message.completed", {
 				id: `message-${++messageSequence}`,
 				role: "user",
-				text: messageText(event.message),
+				text: turn.prompt,
+				sessionTurnId: turn.id,
 			});
 		} else if (event.message.role === "assistant") {
-			const run = currentRun();
+			const turn = currentSessionTurn();
 			activeAssistantId = `message-${++messageSequence}`;
-			if (activeTurn) activeTurn.messageId = activeAssistantId;
-			publish("message.started", { id: activeAssistantId, role: "assistant", runId: run.id });
+			if (activeInvocation) activeInvocation.messageId = activeAssistantId;
+			publish("message.started", {
+				id: activeAssistantId,
+				role: "assistant",
+				runId: turn.id,
+				sessionTurnId: turn.id,
+			});
 		}
 	});
 
 	pi.on("turn_start", () => {
-		const run = currentRun();
-		activeTurn = { id: `turn-${++turnSequence}`, runId: run.id, run, messageId: undefined, startedAt: Date.now() };
+		const turn = currentSessionTurn();
+		activeInvocation = {
+			id: `invocation-${++invocationSequence}`,
+			sessionTurnId: turn.id,
+			sessionTurn: turn,
+			messageId: undefined,
+			startedAt: Date.now(),
+		};
 	});
 
 	pi.on("message_update", (event: { assistantMessageEvent?: { type: string; delta?: string } }) => {
 		const update = event.assistantMessageEvent;
 		if (!activeAssistantId || !update?.delta) return;
 		if (update.type === "text_delta") {
+			if (activeSessionTurn && activeSessionTurn.responseStartedAt === undefined) {
+				activeSessionTurn.responseStartedAt = Date.now();
+			}
 			publish("message.delta", { id: activeAssistantId, text: update.delta });
 		} else if (update.type === "thinking_delta") {
 			publish("message.thinking.delta", { id: activeAssistantId, text: update.delta });
@@ -251,28 +397,35 @@ export default function piUnderGlass(pi: PiApi): void {
 			role: "assistant",
 			text: messageText(event.message),
 			...(thinking ? { thinking } : {}),
+			...(activeSessionTurn ? { sessionTurnId: activeSessionTurn.id } : {}),
 		});
+		if (activeSessionTurn) {
+			const text = messageText(event.message);
+			activeSessionTurn.assistantText = text;
+			if (text && activeSessionTurn.responseStartedAt === undefined) activeSessionTurn.responseStartedAt = Date.now();
+			activeSessionTurn.responseEndedAt = Date.now();
+		}
 		activeAssistantId = undefined;
 	});
 
 	pi.on("turn_end", (event: { message: Message }, context) => {
-		const hadActiveTurn = Boolean(activeTurn);
-		let turn = activeTurn;
-		if (!turn) {
-			const fallbackRun = currentRun();
-			turn = {
-				id: `turn-${++turnSequence}`,
-				runId: fallbackRun.id,
-				run: fallbackRun,
+		const hadActiveInvocation = Boolean(activeInvocation);
+		let invocation = activeInvocation;
+		if (!invocation) {
+			const fallbackTurn = currentSessionTurn();
+			invocation = {
+				id: `invocation-${++invocationSequence}`,
+				sessionTurnId: fallbackTurn.id,
+				sessionTurn: fallbackTurn,
 				messageId: undefined,
 				startedAt: Date.now(),
 			};
 		}
 		// Only report duration when we actually observed turn_start; a synthetic fallback turn has
 		// no real start time to measure from, and this codebase never estimates missing values.
-		const durationMs = hadActiveTurn ? Date.now() - turn.startedAt : undefined;
+		const durationMs = hadActiveInvocation ? Date.now() - invocation.startedAt : undefined;
 		const usage = providerUsage(event.message.usage);
-		addUsage(turn.run.usage, usage);
+		addUsage(invocation.sessionTurn.usage, usage);
 		addUsage(sessionUsage, usage);
 
 		latestContext = undefined;
@@ -282,32 +435,47 @@ export default function piUnderGlass(pi: PiApi): void {
 				inputTokens: usage.inputTokens,
 				...(typeof contextWindow === "number" && contextWindow > 0 ? { contextWindow } : {}),
 			};
+			invocation.sessionTurn.contextEnd = latestContext;
+			contextPoints.push({
+				at: Date.now(),
+				turnId: invocation.sessionTurnId,
+				snapshot: latestContext,
+			});
+			if (contextPoints.length > 200) contextPoints.shift();
 		}
 
 		if (Object.keys(usage).length > 0) {
 			publish("turn.usage", {
-				id: turn.id,
-				runId: turn.runId,
+				id: invocation.id,
+				runId: invocation.sessionTurnId,
 				usage,
-				...(turn.messageId ? { messageId: turn.messageId } : {}),
+				...(invocation.messageId ? { messageId: invocation.messageId } : {}),
 				...(latestContext ? { contextSnapshot: latestContext } : {}),
 				...(durationMs !== undefined ? { durationMs } : {}),
 			});
 		}
 		publish("metrics", metrics());
-		activeTurn = undefined;
+		activeInvocation = undefined;
 	});
 
-	pi.on("agent_settled", () => finishRun());
+	pi.on("agent_settled", () => finishSessionTurn());
 
 	pi.on("tool_execution_start", (event: { toolCallId: string; toolName: string; args?: unknown }) => {
-		toolStarts.set(event.toolCallId, { start: Date.now(), ...(activeTurn ? { turnId: activeTurn.id } : {}) });
+		const sessionTurn = currentSessionTurn();
+		const start = Date.now();
+		toolStarts.set(event.toolCallId, {
+			start,
+			...(activeInvocation ? { invocationId: activeInvocation.id } : {}),
+			sessionTurnId: sessionTurn.id,
+		});
+		sessionTurn.tools.push({ id: event.toolCallId, name: event.toolName, startedAt: start });
 		tools += 1;
 		publish("tool.started", {
 			id: event.toolCallId,
 			name: event.toolName,
 			...(event.args !== undefined ? { args: event.args } : {}),
-			...(activeTurn ? { turnId: activeTurn.id } : {}),
+			...(activeInvocation ? { turnId: activeInvocation.id } : {}),
+			sessionTurnId: sessionTurn.id,
 		});
 		publish("metrics", metrics());
 	});
@@ -317,19 +485,33 @@ export default function piUnderGlass(pi: PiApi): void {
 		(event: { toolCallId: string; toolName: string; isError: boolean; result?: unknown }) => {
 			const began = toolStarts.get(event.toolCallId);
 			toolStarts.delete(event.toolCallId);
+			const endedAt = Date.now();
+			const durationMs = began ? endedAt - began.start : 0;
+			const sessionTurn =
+				activeSessionTurn?.id === began?.sessionTurnId ? activeSessionTurn : undefined;
+			const tool = sessionTurn?.tools.find((item) => item.id === event.toolCallId);
+			if (tool && began) {
+				tool.endedAt = endedAt;
+				tool.durationMs = endedAt - began.start;
+				tool.isError = event.isError;
+			}
+			if (event.isError && sessionTurn) sessionTurn.errorCount += 1;
 			publish("tool.completed", {
 				id: event.toolCallId,
 				name: event.toolName,
 				isError: event.isError,
-				durationMs: Date.now() - (began?.start ?? Date.now()),
+				durationMs,
+				durationKnown: Boolean(began),
 				...(event.result !== undefined ? { result: event.result } : {}),
-				...(began?.turnId ? { turnId: began.turnId } : {}),
+				...(began?.invocationId ? { turnId: began.invocationId } : {}),
+				...(began?.sessionTurnId ? { sessionTurnId: began.sessionTurnId } : {}),
 			});
 		},
 	);
 
 	pi.on("session_shutdown", async () => {
-		finishRun();
+		if (activeSessionTurn) finishSessionTurn("interrupted");
+		publish("session.ended", { endedAt: Date.now() });
 		const current = server;
 		server = undefined;
 		starting = undefined;
@@ -393,4 +575,9 @@ function browserCommand(url: string): { command: string; args: string[] } {
 
 function errorText(error: unknown): string {
 	return error instanceof Error ? error.message : String(error);
+}
+
+function textExcerpt(text: string, limit: number): string {
+	const compact = text.replace(/\s+/g, " ").trim();
+	return compact.length <= limit ? compact : `${compact.slice(0, limit - 1)}…`;
 }

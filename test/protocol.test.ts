@@ -15,7 +15,7 @@ test("creates a versioned event envelope", () => {
 	});
 });
 
-test("represents a system prompt as Agent-run configuration", () => {
+test("represents a system prompt as Turn configuration", () => {
 	const event = createEvent("session-1", 8, "run.systemPrompt", { runId: "run-1", text: "Be concise." }, 1235);
 	assert.deepEqual(event.data, { runId: "run-1", text: "Be concise." });
 });
@@ -50,4 +50,30 @@ test("represents concise session-state changes", () => {
 		fromExtension: false,
 		willRetry: false,
 	});
+});
+
+test("represents user-goal Turn lifecycle facts without changing legacy request usage", () => {
+	const started = createEvent("session-1", 12, "turn.started", {
+		id: "turn-1",
+		prompt: "Inspect the project",
+		model: { provider: "openai", id: "gpt-5", name: "GPT-5" },
+		thinkingLevel: "high",
+	}, 2000);
+	assert.equal(started.data.prompt, "Inspect the project");
+
+	const completed = createEvent("session-1", 13, "turn.completed", {
+		id: "turn-1",
+		status: "completed",
+		startedAt: 2000,
+		endedAt: 2400,
+		durationMs: 400,
+		prompt: "Inspect the project",
+		modelRequests: 0,
+		usage: {},
+		toolCount: 1,
+		errorCount: 0,
+		tools: [{ id: "tool-1", name: "read", startedAt: 2050, endedAt: 2100, durationMs: 50, isError: false }],
+	}, 2400);
+	assert.equal(completed.data.durationMs, 400);
+	assert.equal(completed.data.modelRequests, 0);
 });

@@ -7,68 +7,86 @@
 		<link rel="stylesheet" href="/styles.css" />
 	</head>
 	<body>
-		<main>
-			<header>
-				<div class="header-main">
-					<h1>Pi Under Glass</h1>
-					<span class="status" id="status" aria-live="polite">Connecting</span>
-				</div>
-				<section class="session-summary" aria-labelledby="session-heading">
-					<h2 id="session-heading">Session usage</h2>
-					<div class="metrics-card">
-						<div class="metrics metrics-headline">
-							<div><span>Elapsed</span><strong id="elapsed">00:00</strong></div>
-							<div><span>Activity</span><strong id="activity">0 requests</strong></div>
-							<div data-metric="tokens" hidden><span>Tokens</span><strong id="tokens"></strong></div>
-							<div data-metric="cost" hidden><span>Cost</span><strong id="cost"></strong></div>
-						</div>
-						<div class="metrics metrics-detail">
-							<div data-metric="reasoning" hidden><span>Reasoning</span><strong id="reasoning"></strong></div>
-							<div data-metric="cache" hidden><span>Cache r/w</span><strong id="cache"></strong></div>
-						</div>
-					</div>
-					<div class="context-gauge" id="context-snapshot" hidden>
-						<div class="context-gauge-label">
-							<span>Context window</span>
-							<span id="context-value"></span>
-						</div>
-						<div class="context-gauge-track" id="context-track">
-							<div class="context-gauge-fill" id="context-fill"></div>
-						</div>
-					</div>
-				</section>
-			</header>
+		<header class="app-header">
+			<div class="header-main">
+				<div><p class="eyebrow">Read-only Pi companion</p><h1>Pi Under Glass</h1></div>
+				<span class="status" id="status" aria-live="polite">Connecting</span>
+			</div>
+			<div class="session-facts" aria-label="Session facts">
+				<div><span>Elapsed</span><strong id="elapsed">0ms</strong></div>
+				<div><span>Activity</span><strong id="activity">0 requests · 0 tools</strong></div>
+				<div><span>Tokens</span><strong id="tokens">Unavailable</strong></div>
+				<div><span>Cost</span><strong id="cost">Unavailable</strong></div>
+				<div><span>Context</span><strong id="context-value">Unavailable</strong></div>
+				<div><span>Model</span><strong id="model">Unavailable</strong></div>
+				<div><span>Thinking</span><strong id="thinking-level">Unavailable</strong></div>
+				<div><span>Event stream</span><strong id="sequence-health">Complete since connected</strong></div>
+			</div>
+		</header>
 
-			<section class="transcript">
-				<h2>Live transcript</h2>
-				<div id="events">
-					<p class="empty" id="empty">Send Pi a message to see live activity.</p>
+		<main class="workspace">
+			<section class="overview-panel" aria-labelledby="overview-heading">
+				<div class="panel-heading">
+					<div><p class="eyebrow">Session overview</p><h2 id="overview-heading">Turns</h2></div>
+					<div class="ribbon-legend" aria-label="Ribbon legend">
+						<span><i class="legend-outside"></i>Outside tools</span>
+						<span><i class="legend-tool"></i>Tool activity</span>
+						<span><i class="legend-response"></i>Response</span>
+					</div>
+				</div>
+				<div class="turn-table-wrap">
+					<table class="turn-table">
+						<thead>
+							<tr>
+								<th scope="col">Turn</th>
+								<th scope="col">Prompt</th>
+								<th scope="col" class="visualization-column" aria-label="Visualization"><span class="visually-hidden">Visualization</span></th>
+								<th scope="col">Status</th>
+								<th scope="col">Time</th>
+								<th scope="col">Tools</th>
+								<th scope="col">Errors</th>
+							</tr>
+						</thead>
+						<tbody id="turn-list"></tbody>
+					</table>
 				</div>
 			</section>
+
+			<section class="detail-panel" aria-labelledby="selected-title">
+				<div class="selected-heading">
+					<p class="eyebrow">Selected turn</p>
+					<h2 id="selected-title">Selected turn</h2>
+					<p id="selected-prompt" class="selected-prompt">Choose a turn from the session overview.</p>
+				</div>
+				<div id="selected-facts" class="selected-facts"></div>
+				<ul id="selected-signals" class="selected-signals" hidden></ul>
+				<div id="agent-reported" class="agent-reported" hidden>
+					<strong>Agent-reported final text</strong>
+					<p></p>
+				</div>
+				<div class="evidence-heading"><h3>Evidence</h3><span>Observable events only</span></div>
+				<div id="evidence" class="evidence-list"></div>
+			</section>
 		</main>
-		<button type="button" class="jump-to-latest" id="jump-to-latest" hidden>↓ New activity</button>
+
 		<aside class="options">
 			<details class="options-inner" id="options-details">
-				<summary>Options</summary>
+				<summary>Evidence options</summary>
 				<div class="options-body">
 					<div class="options-group">
-						<span class="options-group-label">Show</span>
-						<div class="options-controls">
-							<label><input id="show-usage" type="checkbox" checked /> Usage details</label>
-							<label><input id="show-tool-input" type="checkbox" checked /> Tool input</label>
-							<label><input id="show-tool-results" type="checkbox" checked /> Tool results</label>
-							<label><input id="show-timestamps" type="checkbox" /> Timestamps</label>
-							<label><input id="show-thinking" type="checkbox" checked /> Thinking</label>
-							<label><input id="show-system-prompt" type="checkbox" /> System prompt</label>
-						</div>
+						<span>Show</span>
+						<label><input id="show-usage" type="checkbox" checked /> Usage</label>
+						<label><input id="show-tool-input" type="checkbox" checked /> Tool input</label>
+						<label><input id="show-tool-results" type="checkbox" checked /> Tool results</label>
+						<label><input id="show-timestamps" type="checkbox" /> Timestamps</label>
+						<label><input id="show-thinking" type="checkbox" checked /> Agent processing</label>
+						<label><input id="show-system-prompt" type="checkbox" /> System prompt</label>
 					</div>
 					<div class="options-group">
-						<span class="options-group-label">Default expanded</span>
-						<div class="options-controls">
-							<label><input id="expand-thinking" type="checkbox" /> Thinking traces</label>
-							<label><input id="expand-tools" type="checkbox" /> Tools</label>
-							<label><input id="expand-compactions" type="checkbox" /> Compaction summaries</label>
-						</div>
+						<span>Default expanded</span>
+						<label><input id="expand-thinking" type="checkbox" /> Agent processing</label>
+						<label><input id="expand-tools" type="checkbox" /> Tools</label>
+						<label><input id="expand-compactions" type="checkbox" /> Compactions</label>
 					</div>
 				</div>
 			</details>
