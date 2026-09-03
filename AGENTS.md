@@ -18,6 +18,14 @@ Pi Under Glass is a minimal, local-first Pi extension. It exposes the current Pi
 - Keep the viewer visually plain, readable, and easy to change. Favor transcript clarity over visual polish or additional panels.
 - Treat protocol changes as compatibility changes: update the version or preserve existing behavior as appropriate.
 
+## Change discipline
+
+- Make the smallest change that directly satisfies the request.
+- Do not refactor, reformat, or clean up adjacent code unless requested.
+- Match the existing style and remove only artifacts made unused by your change.
+- Surface material assumptions or competing interpretations before implementing.
+- For nontrivial work, define observable success criteria and verify them with the relevant checks.
+
 ## Validation and workflow
 
 Run `pnpm check` and `pnpm test` for code changes. Run `pnpm pack:dry` when package contents or metadata change. For Pi integration or viewer changes, also smoke-test the local Pi loader and browser connection when feasible.

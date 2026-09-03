@@ -66,7 +66,7 @@ function renderItem(item, options, openState, isLatestTool, latestAssistantAt) {
 			row.className = `evidence-card tool-evidence${tool.isError ? " error" : ""}${running ? " running" : ""}`;
 			row.dataset.evidenceId = item.id;
 			row.open = openState.has(item.id) ? openState.get(item.id) : open;
-			const status = running ? "running" : `${tool.isError ? "failed" : "done"}${tool.durationMs !== undefined ? ` · ${formatDuration(tool.durationMs)}` : ""}`;
+			const status = running ? "running" : `${tool.isError ? "failed" : "done"}${tool.durationMs !== undefined ? ` ${formatDuration(tool.durationMs)}` : ""}`;
 			const summary = document.createElement("summary");
 			summary.append(title, badge(status, tool.isError ? "error" : running ? "active" : "neutral"), at);
 			row.append(summary);
