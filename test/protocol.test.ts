@@ -73,7 +73,9 @@ test("represents user-goal Turn lifecycle facts without changing legacy request 
 		toolCount: 1,
 		errorCount: 0,
 		tools: [{ id: "tool-1", name: "read", startedAt: 2050, endedAt: 2100, durationMs: 50, isError: false }],
+		invocations: [{ id: "invocation-1", startedAt: 2010, endedAt: 2390, durationMs: 380, firstOutputMs: 40, firstTextMs: 70 }],
 	}, 2400);
 	assert.equal(completed.data.durationMs, 400);
 	assert.equal(completed.data.modelRequests, 0);
+	assert.equal(completed.data.invocations?.[0]?.firstTextMs, 70);
 });

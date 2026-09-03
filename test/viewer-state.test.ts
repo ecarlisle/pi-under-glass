@@ -53,7 +53,7 @@ test("hydrates trustworthy late-join orientation from hello snapshot", () => {
 			model: { provider: "openai", id: "gpt-5", name: "GPT-5" },
 			thinkingLevel: "high",
 			currentTurn: { id: "turn-2", status: "active", startedAt: 200, prompt: "Continue", modelRequests: 0, usage: {}, toolCount: 1, errorCount: 0, tools: [{ id: "tool-1", name: "read", startedAt: 210 }] },
-			completedTurns: [{ id: "turn-1", status: "completed", startedAt: 100, endedAt: 190, durationMs: 90, prompt: "Inspect", modelRequests: 1, usage: { outputTokens: 0 }, toolCount: 0, errorCount: 0, tools: [] }],
+			completedTurns: [{ id: "turn-1", status: "completed", startedAt: 100, endedAt: 190, durationMs: 90, prompt: "Inspect", modelRequests: 1, usage: { outputTokens: 0 }, toolCount: 0, errorCount: 0, tools: [], invocations: [{ id: "invocation-1", startedAt: 105, endedAt: 180, durationMs: 75, firstOutputMs: 20, firstTextMs: 30 }] }],
 			contextPoints: [{ at: 190, turnId: "turn-1", snapshot: { inputTokens: 20 } }],
 			markers: [{ type: "compaction", at: 195, turnId: "turn-2", detail: "manual · 20 tokens before", summary: "Retained facts" }],
 			evidence: [{ id: "prior-tool", type: "tool.started", at: 210, turnId: "turn-2", label: "read" }],
@@ -63,7 +63,17 @@ test("hydrates trustworthy late-join orientation from hello snapshot", () => {
 	assert.equal(state.session.model.id, "gpt-5");
 	assert.equal(state.currentTurnId, "turn-2");
 	assert.deepEqual(state.turnOrder, ["turn-1", "turn-2"]);
+	assert.equal(state.turns["turn-1"].invocations[0].firstOutputMs, 20);
 	assert.ok(turnEvidence(state, "turn-2").some((item: { kind: string }) => item.kind === "metadata"));
+});
+
+test("records per-invocation latency even when provider usage is unavailable", () => {
+	let state = reduceIncoming(createSessionState(), hello);
+	state = reduceIncoming(state, event(1, "turn.started", { id: "turn-1", prompt: "Measure it" }, 100));
+	state = reduceIncoming(state, event(2, "turn.usage", { id: "invocation-1", runId: "turn-1", usage: {}, startedAt: 110, endedAt: 180, durationMs: 70, firstOutputMs: 15, firstTextMs: 25 }, 180));
+	assert.equal(state.turns["turn-1"].modelRequests, 1);
+	assert.deepEqual(state.turns["turn-1"].invocations[0], { id: "invocation-1", startedAt: 110, endedAt: 180, durationMs: 70, firstOutputMs: 15, firstTextMs: 25 });
+	assert.equal(turnEvidence(state, "turn-1").find((item: { kind: string }) => item.kind === "usage")?.data.firstTextMs, 25);
 });
 
 test("keeps zero usage, interrupted tools, errors, and session markers factual", () => {

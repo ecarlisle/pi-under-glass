@@ -14,6 +14,7 @@ import {
 	type SessionSnapshot,
 	type SessionTurnStatus,
 	type TurnFacts,
+	type TurnInvocationFact,
 	type TurnToolFact,
 } from "./protocol.js";
 import { startViewerServer, type ViewerServer } from "./server.js";
@@ -57,6 +58,7 @@ interface ActiveSessionTurn {
 	prompt: string;
 	usage: UsageAccumulator;
 	tools: TurnToolFact[];
+	invocations: TurnInvocationFact[];
 	errorCount: number;
 	assistantText?: string;
 	responseStartedAt?: number;
@@ -73,6 +75,8 @@ interface ActiveInvocation {
 	sessionTurn: ActiveSessionTurn;
 	messageId: string | undefined;
 	startedAt: number;
+	firstOutputAt?: number;
+	firstTextAt?: number;
 }
 
 type EventHandler = (event: any, context: PiContext) => void | Promise<void>;
@@ -109,6 +113,7 @@ export default function piUnderGlass(pi: PiApi): void {
 	let currentModel: ModelIdentity | undefined;
 	let currentThinkingLevel: string | undefined;
 	let activeSessionTurn: ActiveSessionTurn | undefined;
+	let pendingUserMessageTurnId: string | undefined;
 	let activeInvocation: ActiveInvocation | undefined;
 	let activeAssistantId: string | undefined;
 	let server: ViewerServer | undefined;
@@ -144,6 +149,7 @@ export default function piUnderGlass(pi: PiApi): void {
 		toolCount: turn.tools.length,
 		errorCount: turn.errorCount,
 		tools: turn.tools.map((tool) => ({ ...tool })),
+		invocations: turn.invocations.map((invocation) => ({ ...invocation })),
 		...(turn.contextStart ? { contextStart: turn.contextStart } : {}),
 		...(turn.contextEnd ? { contextEnd: turn.contextEnd } : {}),
 	});
@@ -163,6 +169,7 @@ export default function piUnderGlass(pi: PiApi): void {
 		}
 		completedTurns.push(facts);
 		if (completedTurns.length > 100) completedTurns.shift();
+		if (pendingUserMessageTurnId === activeSessionTurn.id) pendingUserMessageTurnId = undefined;
 		activeSessionTurn = undefined;
 	};
 
@@ -174,6 +181,7 @@ export default function piUnderGlass(pi: PiApi): void {
 			prompt,
 			usage: createUsageAccumulator(),
 			tools: [],
+			invocations: [],
 			errorCount: 0,
 			...(currentModel ? { model: currentModel } : {}),
 			...(currentThinkingLevel ? { thinkingLevel: currentThinkingLevel } : {}),
@@ -195,7 +203,11 @@ export default function piUnderGlass(pi: PiApi): void {
 		...(currentModel ? { model: currentModel } : {}),
 		...(currentThinkingLevel ? { thinkingLevel: currentThinkingLevel } : {}),
 		...(activeSessionTurn ? { currentTurn: turnFacts(activeSessionTurn, "active") } : {}),
-		completedTurns: completedTurns.map((turn) => ({ ...turn, tools: turn.tools.map((tool) => ({ ...tool })) })),
+		completedTurns: completedTurns.map((turn) => ({
+			...turn,
+			tools: turn.tools.map((tool) => ({ ...tool })),
+			...(turn.invocations ? { invocations: turn.invocations.map((invocation) => ({ ...invocation })) } : {}),
+		})),
 		contextPoints: contextPoints.map((point) => ({ ...point, snapshot: { ...point.snapshot } })),
 		markers: markers.map((marker) => ({ ...marker })),
 		evidence: evidence.map((item) => ({ ...item })),
@@ -264,8 +276,9 @@ export default function piUnderGlass(pi: PiApi): void {
 		}
 	});
 
-	pi.on("before_agent_start", (event: { systemPrompt: string }) => {
-		const turn = currentSessionTurn();
+	pi.on("before_agent_start", (event: { prompt: string; systemPrompt: string }) => {
+		const turn = beginSessionTurn(event.prompt);
+		pendingUserMessageTurnId = turn.id;
 		if (event.systemPrompt) {
 			publish("run.systemPrompt", { runId: turn.id, sessionTurnId: turn.id, text: event.systemPrompt });
 		}
@@ -344,7 +357,12 @@ export default function piUnderGlass(pi: PiApi): void {
 
 	pi.on("message_start", (event: { message: Message }) => {
 		if (event.message.role === "user") {
-			const turn = beginSessionTurn(messageText(event.message));
+			const prompt = messageText(event.message);
+			const turn = activeSessionTurn && pendingUserMessageTurnId === activeSessionTurn.id
+				? activeSessionTurn
+				: beginSessionTurn(prompt);
+			turn.prompt = prompt || turn.prompt;
+			pendingUserMessageTurnId = undefined;
 			publish("message.completed", {
 				id: `message-${++messageSequence}`,
 				role: "user",
@@ -378,9 +396,13 @@ export default function piUnderGlass(pi: PiApi): void {
 	pi.on("message_update", (event: { assistantMessageEvent?: { type: string; delta?: string } }) => {
 		const update = event.assistantMessageEvent;
 		if (!activeAssistantId || !update?.delta) return;
+		if (update.type !== "text_delta" && update.type !== "thinking_delta") return;
+		const at = Date.now();
+		if (activeInvocation && activeInvocation.firstOutputAt === undefined) activeInvocation.firstOutputAt = at;
 		if (update.type === "text_delta") {
+			if (activeInvocation && activeInvocation.firstTextAt === undefined) activeInvocation.firstTextAt = at;
 			if (activeSessionTurn && activeSessionTurn.responseStartedAt === undefined) {
-				activeSessionTurn.responseStartedAt = Date.now();
+				activeSessionTurn.responseStartedAt = at;
 			}
 			publish("message.delta", { id: activeAssistantId, text: update.delta });
 		} else if (update.type === "thinking_delta") {
@@ -402,7 +424,6 @@ export default function piUnderGlass(pi: PiApi): void {
 		if (activeSessionTurn) {
 			const text = messageText(event.message);
 			activeSessionTurn.assistantText = text;
-			if (text && activeSessionTurn.responseStartedAt === undefined) activeSessionTurn.responseStartedAt = Date.now();
 			activeSessionTurn.responseEndedAt = Date.now();
 		}
 		activeAssistantId = undefined;
@@ -423,7 +444,17 @@ export default function piUnderGlass(pi: PiApi): void {
 		}
 		// Only report duration when we actually observed turn_start; a synthetic fallback turn has
 		// no real start time to measure from, and this codebase never estimates missing values.
-		const durationMs = hadActiveInvocation ? Date.now() - invocation.startedAt : undefined;
+		const endedAt = Date.now();
+		const durationMs = hadActiveInvocation ? endedAt - invocation.startedAt : undefined;
+		const invocationFact: TurnInvocationFact = {
+			id: invocation.id,
+			...(hadActiveInvocation ? { startedAt: invocation.startedAt } : {}),
+			endedAt,
+			...(durationMs !== undefined ? { durationMs } : {}),
+			...(hadActiveInvocation && invocation.firstOutputAt !== undefined ? { firstOutputMs: Math.max(0, invocation.firstOutputAt - invocation.startedAt) } : {}),
+			...(hadActiveInvocation && invocation.firstTextAt !== undefined ? { firstTextMs: Math.max(0, invocation.firstTextAt - invocation.startedAt) } : {}),
+		};
+		invocation.sessionTurn.invocations.push(invocationFact);
 		const usage = providerUsage(event.message.usage);
 		addUsage(invocation.sessionTurn.usage, usage);
 		addUsage(sessionUsage, usage);
@@ -444,16 +475,13 @@ export default function piUnderGlass(pi: PiApi): void {
 			if (contextPoints.length > 200) contextPoints.shift();
 		}
 
-		if (Object.keys(usage).length > 0) {
-			publish("turn.usage", {
-				id: invocation.id,
-				runId: invocation.sessionTurnId,
-				usage,
-				...(invocation.messageId ? { messageId: invocation.messageId } : {}),
-				...(latestContext ? { contextSnapshot: latestContext } : {}),
-				...(durationMs !== undefined ? { durationMs } : {}),
-			});
-		}
+		publish("turn.usage", {
+			...invocationFact,
+			runId: invocation.sessionTurnId,
+			usage,
+			...(invocation.messageId ? { messageId: invocation.messageId } : {}),
+			...(latestContext ? { contextSnapshot: latestContext } : {}),
+		});
 		publish("metrics", metrics());
 		activeInvocation = undefined;
 	});

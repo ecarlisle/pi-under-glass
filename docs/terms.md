@@ -3,6 +3,8 @@
 - **Session:** The whole Pi conversation/container, including its messages, Turns, and session-level state changes. Session usage rolls up all completed model invocations.
 - **Turn:** One execution of a User goal or prompt. A Turn begins with the User prompt and can contain multiple model invocations, assistant messages, tool calls, and tool results.
 - **Model invocation:** One request to a model provider and its response. This is the authoritative unit for provider-reported usage; a Turn may contain more than one.
+- **First output latency (TTFO):** Elapsed time from an observed model invocation start to its first Thinking or Text delta.
+- **Time to first token (TTFT):** Elapsed time from an observed model invocation start to its first visible Text delta.
 - **Message:** One conversation item with a Role and one or more content blocks.
 - **Role:** The source or function assigned to a Message. Pi uses `user`, `assistant`, and `toolResult`; the viewer labels `user` as User and `assistant` as Agent.
 - **Content type:** The kind of content within a Message or Turn, such as Text, Thinking, System prompt, Tool call, or Tool result as presented by the viewer.
@@ -23,3 +25,5 @@ User and Agent are the dialogue participants. Agent is the viewer label for Pi's
 ## Token accounting
 
 Per-invocation usage comes directly from Pi's provider-reported values. Turn and Session figures sum completed model invocations only. Total input processed is cumulative provider-reported input, not context size. The latest-request Context snapshot is separate: it shows that request's input tokens and the model context-window capacity when Pi exposes it. Missing values are not estimated.
+
+Per-invocation wall time, TTFO, and TTFT are measured from Pi lifecycle events. TTFO and TTFT remain unavailable when the corresponding streaming delta was not observed.

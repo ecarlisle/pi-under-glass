@@ -287,6 +287,18 @@ function applyEvent(state, event) {
 			if (!turnId) break;
 			const turn = ensureTurn(state, turnId);
 			turn.modelRequests = (turn.modelRequests ?? 0) + 1;
+			turn.invocations ??= [];
+			const invocationFacts = {
+				id: data.id,
+				...(Number.isFinite(data.startedAt) ? { startedAt: data.startedAt } : {}),
+				...(Number.isFinite(data.endedAt) ? { endedAt: data.endedAt } : {}),
+				...(Number.isFinite(data.durationMs) ? { durationMs: data.durationMs } : {}),
+				...(Number.isFinite(data.firstOutputMs) ? { firstOutputMs: data.firstOutputMs } : {}),
+				...(Number.isFinite(data.firstTextMs) ? { firstTextMs: data.firstTextMs } : {}),
+			};
+			const invocation = turn.invocations.find((item) => item.id === data.id);
+			if (invocation) Object.assign(invocation, invocationFacts);
+			else turn.invocations.push(invocationFacts);
 			turn.contextEnd = data.contextSnapshot ?? turn.contextEnd;
 			if (data.contextSnapshot) state.session.contextPoints.push({ at: event.at, turnId, snapshot: { ...data.contextSnapshot } });
 			addEvidence(state, turnId, `usage:${data.id}`, { kind: "usage", at: event.at, data: { ...data } });
@@ -312,6 +324,7 @@ function normalizeFacts(facts) {
 	return {
 		...facts,
 		tools: Object.fromEntries((facts.tools ?? []).map((tool) => [tool.id, { ...tool }])),
+		invocations: (facts.invocations ?? []).map((invocation) => ({ ...invocation })),
 	};
 }
 
@@ -327,6 +340,7 @@ function ensureTurn(state, id, seed = {}) {
 			toolCount: 0,
 			errorCount: 0,
 			tools: {},
+			invocations: [],
 			...seed,
 		};
 		state.turnOrder.push(id);

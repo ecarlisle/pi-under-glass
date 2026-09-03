@@ -38,6 +38,15 @@ export interface TurnToolFact {
 	isError?: boolean;
 }
 
+export interface TurnInvocationFact {
+	id: string;
+	startedAt?: number;
+	endedAt: number;
+	durationMs?: number;
+	firstOutputMs?: number;
+	firstTextMs?: number;
+}
+
 export interface TurnFacts {
 	id: string;
 	status: SessionTurnStatus;
@@ -55,6 +64,7 @@ export interface TurnFacts {
 	toolCount: number;
 	errorCount: number;
 	tools: TurnToolFact[];
+	invocations?: TurnInvocationFact[];
 	contextStart?: ContextSnapshot;
 	contextEnd?: ContextSnapshot;
 }
@@ -130,6 +140,10 @@ export interface EventDataMap {
 		usage: UsageValues;
 		contextSnapshot?: ContextSnapshot;
 		durationMs?: number;
+		startedAt?: number;
+		endedAt?: number;
+		firstOutputMs?: number;
+		firstTextMs?: number;
 	};
 	"run.completed": { id: string; modelRequests: number; usage: UsageValues };
 	"tool.started": { id: string; name: string; args?: unknown; turnId?: string; sessionTurnId?: string };

@@ -192,6 +192,8 @@ function usageText(data) {
 	if (usage.cacheReadTokens !== undefined || usage.cacheWriteTokens !== undefined) parts.push(`Cache ${usage.cacheReadTokens === undefined ? "—" : formatNumber(usage.cacheReadTokens)} / ${usage.cacheWriteTokens === undefined ? "—" : formatNumber(usage.cacheWriteTokens)}`);
 	if (usage.cost !== undefined) parts.push(`$${usage.cost.toFixed(4)}`);
 	if (data.durationMs !== undefined) parts.push(`Request wall time ${formatDuration(data.durationMs)}`);
+	if (data.firstOutputMs !== undefined) parts.push(`First output ${formatDuration(data.firstOutputMs)}`);
+	if (data.firstTextMs !== undefined) parts.push(`First text ${formatDuration(data.firstTextMs)}`);
 	return parts.length > 0 ? parts.join(" · ") : "Usage unavailable";
 }
 

@@ -137,7 +137,7 @@ function renderTurnList() {
 	if (state.turnOrder.length === 0) {
 		const row = document.createElement("tr");
 		const cell = document.createElement("td");
-		cell.colSpan = 7;
+		cell.colSpan = 8;
 		const empty = document.createElement("p");
 		empty.className = "empty";
 		empty.textContent = "Send Pi a prompt to see the first turn.";
@@ -177,13 +177,15 @@ function renderTurnList() {
 		statusCell.append(factBadge(statusLabel(turn.status), turn.status === "active" ? "active" : turn.status === "interrupted" ? "error" : "neutral"));
 		const timeCell = document.createElement("td");
 		timeCell.textContent = formatDuration(turn.durationMs ?? Math.max(0, Date.now() - turn.startedAt));
+		const ttftCell = document.createElement("td");
+		ttftCell.textContent = formatInvocationLatency(turn, "firstTextMs");
 		const toolsCell = document.createElement("td");
 		toolsCell.textContent = formatNumber(turn.toolCount ?? Object.keys(turn.tools ?? {}).length);
 		const errorsCell = document.createElement("td");
 		errorsCell.className = turn.errorCount > 0 ? "turn-error-count" : "";
 		errorsCell.textContent = formatNumber(turn.errorCount ?? 0);
 
-		row.append(turnCell, promptCell, visualizationCell, statusCell, timeCell, toolsCell, errorsCell);
+		row.append(turnCell, promptCell, visualizationCell, statusCell, timeCell, ttftCell, toolsCell, errorsCell);
 		elements.turnList.append(row);
 	});
 }
@@ -242,6 +244,8 @@ function renderSelectedTurn() {
 	elements.selectedFacts.replaceChildren(
 		fact("Status", statusLabel(turn.status)),
 		fact("Wall time", formatDuration(turn.durationMs ?? Math.max(0, Date.now() - turn.startedAt))),
+		fact("First output", formatInvocationLatency(turn, "firstOutputMs")),
+		fact("TTFT", formatInvocationLatency(turn, "firstTextMs")),
 		fact("Tools", formatNumber(turn.toolCount ?? Object.keys(turn.tools ?? {}).length)),
 		fact("Errors", formatNumber(turn.errorCount ?? 0)),
 		fact("Model requests", formatNumber(turn.modelRequests ?? 0)),
@@ -307,6 +311,10 @@ function formatContext(turn) {
 }
 
 function statusLabel(status) { return status === "active" ? "In progress" : status === "interrupted" ? "Interrupted" : "Completed"; }
+function formatInvocationLatency(turn, field) {
+	const value = turn.invocations?.[0]?.[field];
+	return Number.isFinite(value) ? formatDuration(value) : "—";
+}
 function formatDuration(milliseconds) {
 	if (milliseconds < 1000) return `${Math.round(milliseconds)}ms`;
 	const seconds = milliseconds / 1000;
