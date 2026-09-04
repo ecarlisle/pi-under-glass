@@ -45,7 +45,7 @@ function renderItem(item, options, openState, isLatestTool, latestAssistantAt) {
 			wrapper.dataset.evidenceId = item.id;
 			wrapper.append(header("Assistant response", at));
 			if (options.showThinking && item.data.thinking) {
-				wrapper.append(details(item.id, "Agent processing", item.data.thinking, "thinking-evidence", options.expandThinking, openState, true));
+					wrapper.append(details(item.id, "Reasoning trace", item.data.thinking, "thinking-evidence", options.expandThinking, openState, true));
 			}
 			const body = document.createElement("div");
 			body.className = "evidence-body markdown";
@@ -55,7 +55,7 @@ function renderItem(item, options, openState, isLatestTool, latestAssistantAt) {
 		}
 		case "system":
 			if (!options.showSystemPrompt) return undefined;
-			return details(item.id, "System prompt", item.data.text, "system-evidence", false, openState);
+			return details(item.id, "System prompt sent to model", item.data.text, "system-evidence", false, openState);
 		case "tool": {
 			const tool = item.data;
 			const running = tool.endedAt === undefined;
@@ -66,7 +66,7 @@ function renderItem(item, options, openState, isLatestTool, latestAssistantAt) {
 			row.className = `evidence-card tool-evidence${tool.isError ? " error" : ""}${running ? " running" : ""}`;
 			row.dataset.evidenceId = item.id;
 			row.open = openState.has(item.id) ? openState.get(item.id) : open;
-			const status = running ? "running" : `${tool.isError ? "failed" : "done"}${tool.durationMs !== undefined ? ` ${formatDuration(tool.durationMs)}` : ""}`;
+			const status = running ? "running" : `${tool.isError ? "failed" : "done"} · ${tool.durationMs !== undefined ? formatDuration(tool.durationMs) : "duration unavailable"}`;
 			const summary = document.createElement("summary");
 			summary.append(title, badge(status, tool.isError ? "error" : running ? "active" : "neutral"), at);
 			row.append(summary);
@@ -86,7 +86,7 @@ function renderItem(item, options, openState, isLatestTool, latestAssistantAt) {
 			if (!options.showUsage) return undefined;
 			return block(item, "Model request facts", usageText(item.data), "usage-evidence", at);
 		case "metadata":
-			return block(item, "Earlier evidence", `${item.data.type}${item.data.label ? ` · ${item.data.label}` : ""}`, "metadata-evidence", at);
+			return block(item, "Earlier evidence summary", `${item.data.type}${item.data.label ? ` · ${item.data.label}` : ""}`, "metadata-evidence", at);
 		default:
 			return undefined;
 	}

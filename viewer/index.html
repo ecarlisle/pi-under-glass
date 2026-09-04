@@ -9,90 +9,85 @@
 	<body>
 		<header class="app-header">
 			<div class="header-main">
-				<div><p class="eyebrow">Read-only Pi companion</p><h1>Pi Under Glass</h1></div>
-				<span class="status" id="status" aria-live="polite">Connecting</span>
+				<div class="app-identity"><p class="eyebrow">Read-only Pi companion</p><h1>Pi Under Glass</h1></div>
+				<div class="orientation" aria-label="Session orientation">
+					<span class="status" id="status" aria-live="polite">Connecting</span>
+					<div class="orientation-fact"><span>Elapsed</span><strong id="elapsed">0ms</strong></div>
+					<div class="orientation-fact"><span>Model</span><strong id="model">Unavailable</strong></div>
+					<details class="session-details" id="session-details">
+						<summary>Session totals</summary>
+						<div class="session-facts" aria-label="Session totals">
+							<div><span>Requests · Tools</span><strong id="activity">0 requests · 0 tools</strong></div>
+							<div><span>Tokens</span><strong id="tokens">Unavailable</strong></div>
+							<div><span>Cost</span><strong id="cost">Unavailable</strong></div>
+							<div><span>Latest context</span><strong id="context-value">Unavailable</strong></div>
+							<div><span>Thinking level</span><strong id="thinking-level">Unavailable</strong></div>
+						</div>
+					</details>
+				</div>
 			</div>
-			<div class="session-facts" aria-label="Session facts">
-				<div><span>Elapsed</span><strong id="elapsed">0ms</strong></div>
-				<div><span>Activity</span><strong id="activity">0 requests · 0 tools</strong></div>
-				<div><span>Tokens</span><strong id="tokens">Unavailable</strong></div>
-				<div><span>Cost</span><strong id="cost">Unavailable</strong></div>
-				<div><span>Context</span><strong id="context-value">Unavailable</strong></div>
-				<div><span>Model</span><strong id="model">Unavailable</strong></div>
-				<div><span>Thinking</span><strong id="thinking-level">Unavailable</strong></div>
-				<div><span>Event stream</span><strong id="sequence-health">Complete since connected</strong></div>
-			</div>
+			<p class="connection-note" id="connection-note" aria-live="polite">Opening a read-only view of this local Pi session.</p>
 		</header>
 
-		<main class="workspace">
+		<main class="app-message" id="app-message" hidden>
+			<div>
+				<span class="status" id="app-message-badge">Unavailable</span>
+				<h2 id="app-message-title">Viewer unavailable</h2>
+				<p id="app-message-text"></p>
+			</div>
+		</main>
+
+		<main class="workspace" id="workspace">
 			<section class="overview-panel" aria-labelledby="overview-heading">
 				<div class="panel-heading">
 					<div><p class="eyebrow">Session overview</p><h2 id="overview-heading">Turns</h2></div>
-					<div class="ribbon-legend" aria-label="Ribbon legend">
-						<span><i class="legend-outside"></i>Outside tools</span>
-						<span><i class="legend-tool"></i>Tool activity</span>
+					<div class="ribbon-legend" aria-label="Activity ribbon legend">
+						<span><i class="legend-outside"></i>Other turn time</span>
+						<span><i class="legend-tool"></i>Tool</span>
 						<span><i class="legend-response"></i>Response</span>
-						<span><i class="legend-error"></i>Errors</span>
 					</div>
 				</div>
-				<div class="turn-table-wrap">
-					<table class="turn-table">
-						<thead>
-							<tr>
-								<th scope="col">Turn</th>
-								<th scope="col">Prompt</th>
-								<th scope="col" class="visualization-column" aria-label="Visualization"><span class="visually-hidden">Visualization</span></th>
-								<th scope="col">Status</th>
-								<th scope="col">Time</th>
-								<th scope="col" title="Time to first token">TTFT</th>
-								<th scope="col">Tools</th>
-								<th scope="col">Errors</th>
-							</tr>
-						</thead>
-						<tbody id="turn-list"></tbody>
-					</table>
-				</div>
+				<p class="panel-help">Select a turn to inspect its observed activity and reported output.</p>
+				<div class="turn-list" id="turn-list" aria-label="Turns"></div>
 			</section>
 
-			<section class="detail-panel" aria-labelledby="selected-title">
+			<section class="detail-panel" id="turn-detail" aria-labelledby="selected-title">
 				<div class="selected-heading">
-					<p class="eyebrow">Selected turn</p>
-					<h2 id="selected-title">Selected turn</h2>
-					<p id="selected-prompt" class="selected-prompt">Choose a turn from the session overview.</p>
+					<p class="eyebrow" id="selected-kicker">Selected turn</p>
+					<h2 id="selected-title">Choose a turn</h2>
+					<p id="selected-prompt" class="selected-prompt">Select a turn from the session overview to inspect its evidence.</p>
 				</div>
 				<div id="selected-facts" class="selected-facts"></div>
+				<p id="selected-partial" class="partial-notice" hidden>Partial evidence — this turn is represented by summary facts and bounded evidence from before the viewer connected.</p>
 				<ul id="selected-signals" class="selected-signals" hidden></ul>
 				<div id="agent-reported" class="agent-reported" hidden>
 					<strong>Agent-reported final text</strong>
 					<p></p>
 				</div>
-				<div class="evidence-heading"><h3>Evidence</h3><span>Observable events only</span></div>
+				<details class="options-inner" id="options-details">
+					<summary>Evidence display options</summary>
+					<div class="options-body">
+						<div class="options-group">
+							<span>Show</span>
+							<label><input id="show-usage" type="checkbox" checked /> Model request facts</label>
+							<label><input id="show-tool-input" type="checkbox" checked /> Tool input</label>
+							<label><input id="show-tool-results" type="checkbox" checked /> Tool results</label>
+							<label><input id="show-timestamps" type="checkbox" /> Timestamps</label>
+							<label><input id="show-thinking" type="checkbox" checked /> Reasoning trace</label>
+							<label><input id="show-system-prompt" type="checkbox" /> System prompt sent to model</label>
+						</div>
+						<div class="options-group">
+							<span>Default expanded</span>
+							<label><input id="expand-thinking" type="checkbox" /> Reasoning traces</label>
+							<label><input id="expand-tools" type="checkbox" /> Tools</label>
+							<label><input id="expand-compactions" type="checkbox" /> Context compactions</label>
+						</div>
+					</div>
+				</details>
+				<div class="evidence-heading"><h3>Evidence</h3><span>Observed events and labeled agent reports</span></div>
 				<div id="evidence" class="evidence-list"></div>
 			</section>
 		</main>
-
-		<aside class="options">
-			<details class="options-inner" id="options-details">
-				<summary>Evidence options</summary>
-				<div class="options-body">
-					<div class="options-group">
-						<span>Show</span>
-						<label><input id="show-usage" type="checkbox" checked /> Usage</label>
-						<label><input id="show-tool-input" type="checkbox" checked /> Tool input</label>
-						<label><input id="show-tool-results" type="checkbox" checked /> Tool results</label>
-						<label><input id="show-timestamps" type="checkbox" /> Timestamps</label>
-						<label><input id="show-thinking" type="checkbox" checked /> Agent processing</label>
-						<label><input id="show-system-prompt" type="checkbox" /> System prompt</label>
-					</div>
-					<div class="options-group">
-						<span>Default expanded</span>
-						<label><input id="expand-thinking" type="checkbox" /> Agent processing</label>
-						<label><input id="expand-tools" type="checkbox" /> Tools</label>
-						<label><input id="expand-compactions" type="checkbox" /> Compactions</label>
-					</div>
-				</div>
-			</details>
-		</aside>
 		<script type="module" src="/app.js"></script>
 	</body>
 </html>

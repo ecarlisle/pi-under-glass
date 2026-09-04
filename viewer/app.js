@@ -1,9 +1,10 @@
-import { buildRibbonSegments, createSessionState, deriveSignals, reduceIncoming, selectTurn, selectedTurn, turnEvidence } from "./state.js";
+import { buildRibbonSegments, createSessionState, deriveSignals, reduceIncoming, selectTurn, selectedTurn } from "./state.js";
 import { createEvidenceRenderer } from "./transcript.js";
 
 const elements = Object.fromEntries([
-	"status", "elapsed", "activity", "tokens", "cost", "context-value", "model", "thinking-level", "sequence-health",
-	"turn-list", "selected-title", "selected-prompt", "selected-facts", "selected-signals", "agent-reported", "evidence",
+	"status", "elapsed", "activity", "tokens", "cost", "context-value", "model", "thinking-level", "connection-note", "session-details",
+	"app-message", "app-message-badge", "app-message-title", "app-message-text", "workspace", "turn-detail",
+	"turn-list", "selected-kicker", "selected-title", "selected-prompt", "selected-facts", "selected-partial", "selected-signals", "agent-reported", "evidence",
 	"options-details", "show-usage", "show-tool-input", "show-tool-results", "show-timestamps", "show-thinking",
 	"show-system-prompt", "expand-thinking", "expand-tools", "expand-compactions",
 ].map((id) => [camel(id), document.querySelector(`#${id}`)]));
@@ -17,10 +18,12 @@ let state = createSessionState();
 let retryTimer;
 let flushTimer;
 let reconnectAttempts = 0;
+let nextRetryMs;
 
 restorePreferences();
 for (const option of optionElements) option.addEventListener("change", () => { savePreferences(); render(); });
 elements.optionsDetails.addEventListener("toggle", savePreferences);
+elements.sessionDetails.addEventListener("toggle", savePreferences);
 
 const evidenceRenderer = createEvidenceRenderer(elements.evidence, () => ({
 	showUsage: elements.showUsage.checked,
@@ -41,6 +44,7 @@ function connect() {
 	const socket = new WebSocket(`ws://${location.host}/events?token=${encodeURIComponent(token)}`);
 	socket.addEventListener("open", () => {
 		reconnectAttempts = 0;
+		nextRetryMs = undefined;
 		setConnection("live");
 	});
 	socket.addEventListener("message", ({ data }) => {
@@ -49,8 +53,9 @@ function connect() {
 	socket.addEventListener("close", () => {
 		if (state.connection === "ended") return render();
 		reconnectAttempts += 1;
-		setConnection("reconnecting");
 		const delay = Math.min(1200 * 2 ** (reconnectAttempts - 1), 15_000);
+		nextRetryMs = delay;
+		setConnection("reconnecting");
 		clearTimeout(retryTimer);
 		retryTimer = setTimeout(connect, delay);
 	});
@@ -116,6 +121,20 @@ function renderStatus() {
 	};
 	elements.status.textContent = labels[state.connection] ?? "Connecting";
 	elements.status.className = `status status--${state.connection}`;
+	elements.connectionNote.textContent = connectionNote();
+	const message = state.connection === "missing-token"
+		? { title: "Session link required", text: "Open the session-specific URL shown by Pi. The access token stays in that local URL and is never displayed here." }
+		: state.connection === "sample-error"
+			? { title: "Sample data unavailable", text: "The bundled sample fixture could not be loaded or parsed. Refresh to try again, or open a live Pi session." }
+			: undefined;
+	elements.appMessage.hidden = !message;
+	elements.workspace.hidden = Boolean(message);
+	if (message) {
+		elements.appMessageBadge.textContent = labels[state.connection];
+		elements.appMessageBadge.className = `status status--${state.connection}`;
+		elements.appMessageTitle.textContent = message.title;
+		elements.appMessageText.textContent = message.text;
+	}
 }
 
 function renderSessionFacts() {
@@ -128,65 +147,73 @@ function renderSessionFacts() {
 	elements.contextValue.textContent = latestContext ? `${formatNumber(latestContext.inputTokens)}${latestContext.contextWindow ? ` / ${formatNumber(latestContext.contextWindow)}` : ""} tokens` : "Unavailable";
 	elements.model.textContent = state.session.model ? formatModel(state.session.model) : "Unavailable";
 	elements.thinkingLevel.textContent = state.session.thinkingLevel ? titleCase(state.session.thinkingLevel) : "Unavailable";
+}
+
+function connectionNote() {
+	if (state.connection === "sample") return "Recorded sample data — this view is not connected to a live Pi session.";
+	if (state.connection === "connecting") return "Opening a read-only view of this local Pi session.";
+	if (state.connection === "reconnecting") return `Connection lost. Retrying${nextRetryMs ? ` in about ${formatDuration(nextRetryMs)}` : ""}; information already shown remains available.`;
+	if (state.connection === "ended") return `Pi has stopped; no further activity will arrive.${state.session.partialHistory ? " Earlier activity may still be represented by summary facts only." : ""}`;
+	if (state.connection === "missing-token") return "The viewer cannot connect without its session-specific local link.";
+	if (state.connection === "sample-error") return "The recorded sample could not be loaded.";
+	if (state.gaps.length > 0) return `Live, with ${state.gaps.length} event gap${state.gaps.length === 1 ? "" : "s"} observed. Some activity may be missing.`;
 	const pending = Object.keys(state.pending).length;
-	elements.sequenceHealth.textContent = state.gaps.length > 0 ? `${state.gaps.length} event gap${state.gaps.length === 1 ? "" : "s"} observed` : pending > 0 ? `Waiting for ${pending} event${pending === 1 ? "" : "s"}` : state.duplicates > 0 ? `${state.duplicates} duplicate${state.duplicates === 1 ? "" : "s"} ignored` : "Complete since connected";
+	if (pending > 0) return `Live. Waiting for ${pending} out-of-order event${pending === 1 ? "" : "s"} before the sequence is complete.`;
+	if (state.session.partialHistory) return "Live. You joined after activity began; earlier turns contain summary facts and bounded evidence, not a full replay.";
+	if (state.duplicates > 0) return `Live. Complete since connected; ${state.duplicates} duplicate event${state.duplicates === 1 ? " was" : "s were"} ignored.`;
+	return "Live. Showing complete events since this viewer connected.";
 }
 
 function renderTurnList() {
 	elements.turnList.replaceChildren();
 	if (state.turnOrder.length === 0) {
-		const row = document.createElement("tr");
-		const cell = document.createElement("td");
-		cell.colSpan = 8;
 		const empty = document.createElement("p");
 		empty.className = "empty";
 		empty.textContent = "Send Pi a prompt to see the first turn.";
-		cell.append(empty);
-		row.append(cell);
-		elements.turnList.append(row);
+		elements.turnList.append(empty);
 		return;
 	}
 	state.turnOrder.forEach((turnId, index) => {
 		const turn = state.turns[turnId];
 		const turnNumber = index + 1;
-		const row = document.createElement("tr");
-		row.className = `turn-row${state.selectedTurnId === turnId ? " selected" : ""}`;
-		row.addEventListener("click", () => chooseTurn(turnId));
+		const card = document.createElement("button");
+		card.className = `turn-card${state.selectedTurnId === turnId ? " selected" : ""}`;
+		card.type = "button";
+		card.setAttribute("aria-label", turnCardLabel(turn, turnNumber));
+		if (state.selectedTurnId === turnId) card.setAttribute("aria-current", "true");
+		card.addEventListener("click", () => chooseTurn(turnId));
 
-		const turnCell = document.createElement("td");
-		const selectButton = document.createElement("button");
-		selectButton.className = "turn-select";
-		selectButton.type = "button";
-		selectButton.textContent = String(turnNumber);
-		selectButton.setAttribute("aria-label", `Select Turn ${turnNumber}`);
-		if (state.selectedTurnId === turnId) selectButton.setAttribute("aria-current", "true");
-		selectButton.addEventListener("click", (event) => { event.stopPropagation(); chooseTurn(turnId); });
-		turnCell.append(selectButton);
+		const heading = document.createElement("span");
+		heading.className = "turn-card-heading";
+		const identity = document.createElement("span");
+		identity.className = "turn-card-identity";
+		const number = document.createElement("span");
+		number.className = "turn-number";
+		number.textContent = String(turnNumber);
+		const prompt = document.createElement("span");
+		prompt.className = "turn-prompt";
+		prompt.textContent = excerptText(turn.prompt || "Prompt unavailable", 46);
+		prompt.title = turn.prompt || "Prompt unavailable";
+		identity.append(number, prompt);
+		heading.append(identity, factBadge(statusLabel(turn.status), turn.status === "active" ? "active" : turn.status === "interrupted" ? "error" : "neutral"));
 
-		const promptCell = document.createElement("td");
-		promptCell.className = "turn-prompt-cell";
-		promptCell.textContent = excerptText(turn.prompt || "Prompt unavailable", 21);
-		promptCell.title = turn.prompt || "Prompt unavailable";
+		const facts = document.createElement("span");
+		facts.className = "turn-card-facts";
+		const duration = formatDuration(turn.durationMs ?? Math.max(0, Date.now() - turn.startedAt));
+		const toolCount = turn.toolCount ?? Object.keys(turn.tools ?? {}).length;
+		facts.append(cardFact("Time", duration), cardFact("First text", formatInvocationLatency(turn, "firstTextMs")), cardFact("Tools", formatNumber(toolCount)));
+		const errors = cardFact("Errors", turn.errorCount > 0 ? `⚠ ${formatNumber(turn.errorCount)}` : "None");
+		if (turn.errorCount > 0) errors.classList.add("turn-error-count");
+		facts.append(errors);
 
-		const visualizationCell = document.createElement("td");
-		visualizationCell.className = "turn-visualization-cell";
-		visualizationCell.setAttribute("aria-label", `Turn ${turnNumber} visualization`);
-		visualizationCell.append(renderRibbon(turn, turnNumber));
-
-		const statusCell = document.createElement("td");
-		statusCell.append(factBadge(statusLabel(turn.status), turn.status === "active" ? "active" : turn.status === "interrupted" ? "error" : "neutral"));
-		const timeCell = document.createElement("td");
-		timeCell.textContent = formatDuration(turn.durationMs ?? Math.max(0, Date.now() - turn.startedAt));
-		const ttftCell = document.createElement("td");
-		ttftCell.textContent = formatInvocationLatency(turn, "firstTextMs");
-		const toolsCell = document.createElement("td");
-		toolsCell.textContent = formatNumber(turn.toolCount ?? Object.keys(turn.tools ?? {}).length);
-		const errorsCell = document.createElement("td");
-		errorsCell.className = turn.errorCount > 0 ? "turn-error-count" : "";
-		errorsCell.textContent = formatNumber(turn.errorCount ?? 0);
-
-		row.append(turnCell, promptCell, visualizationCell, statusCell, timeCell, ttftCell, toolsCell, errorsCell);
-		elements.turnList.append(row);
+		card.append(heading, renderRibbon(turn, turnNumber), facts);
+		if (turn.partialEvidence) {
+			const partial = document.createElement("span");
+			partial.className = "turn-partial";
+			partial.textContent = "⚠ Partial evidence — joined after activity began";
+			card.append(partial);
+		}
+		elements.turnList.append(card);
 	});
 }
 
@@ -199,57 +226,47 @@ function renderRibbon(turn, turnNumber) {
 		item.className = `ribbon-segment ribbon-segment--${segment.type}`;
 		item.style.left = `${segment.left}%`;
 		item.style.width = `${segment.width}%`;
-		item.title = segment.type === "tool" ? "Tool activity" : segment.type === "response" ? "Assistant response" : "Outside tools";
-		item.tabIndex = 0;
-		item.addEventListener("click", (event) => { event.stopPropagation(); chooseTurn(turn.id, segment.type); });
+		item.title = segment.type === "tool" ? "Tool activity" : segment.type === "response" ? "Assistant response" : "Other turn time";
+		item.setAttribute("aria-hidden", "true");
 		ribbon.append(item);
-	}
-	const evidence = turnEvidence(state, turn.id);
-	const end = turn.endedAt ?? Date.now();
-	const duration = Math.max(1, end - turn.startedAt);
-	const points = [{ type: "prompt", at: turn.startedAt }, ...evidence.filter((item) => item.kind === "marker" || (item.kind === "tool" && item.data.isError)).map((item) => ({ type: item.kind === "marker" ? "marker" : "error", at: item.at }))];
-	for (const point of points) {
-		const marker = document.createElement("span");
-		marker.className = `ribbon-point ribbon-point--${point.type}`;
-		marker.style.left = `${Math.min(100, Math.max(0, ((point.at - turn.startedAt) / duration) * 100))}%`;
-		marker.title = point.type === "prompt" ? "User prompt" : point.type === "error" ? "Tool error" : "Session marker";
-		ribbon.append(marker);
 	}
 	return ribbon;
 }
 
-function chooseTurn(turnId, segmentType) {
+function chooseTurn(turnId) {
 	state = selectTurn(state, turnId);
 	render();
-	if (!segmentType) return;
-	const kind = segmentType === "tool" ? "tool" : segmentType === "response" ? "assistant" : segmentType === "prompt" ? "prompt" : undefined;
-	const target = kind ? turnEvidence(state, turnId).find((item) => item.kind === kind) : undefined;
-	if (target) evidenceRenderer.focus(target.id);
+	if (matchMedia("(max-width: 980px)").matches) {
+		const behavior = matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
+		requestAnimationFrame(() => elements.turnDetail.scrollIntoView({ behavior, block: "start" }));
+	}
 }
 
 function renderSelectedTurn() {
 	const turn = selectedTurn(state);
 	if (!turn) {
-		elements.selectedTitle.textContent = "Selected turn";
-		elements.selectedPrompt.textContent = "Choose a turn from the session overview.";
+		elements.selectedKicker.textContent = "Selected turn";
+		elements.selectedTitle.textContent = "Choose a turn";
+		elements.selectedPrompt.textContent = "Select a turn from the session overview to inspect its evidence.";
 		elements.selectedFacts.replaceChildren();
+		elements.selectedPartial.hidden = true;
 		elements.selectedSignals.replaceChildren();
 		elements.agentReported.hidden = true;
 		evidenceRenderer.render(state, undefined);
 		return;
 	}
 	const index = state.turnOrder.indexOf(turn.id) + 1;
-	elements.selectedTitle.textContent = `Turn ${index} evidence`;
-	elements.selectedPrompt.textContent = turn.prompt || "Prompt unavailable";
+	elements.selectedKicker.textContent = `Turn ${index} evidence`;
+	elements.selectedTitle.textContent = turn.prompt || "Prompt unavailable";
+	elements.selectedPrompt.textContent = "Observed session activity and agent-reported output are labeled separately.";
+	elements.selectedPartial.hidden = !turn.partialEvidence;
 	elements.selectedFacts.replaceChildren(
 		fact("Status", statusLabel(turn.status)),
 		fact("Wall time", formatDuration(turn.durationMs ?? Math.max(0, Date.now() - turn.startedAt))),
 		fact("First output", formatInvocationLatency(turn, "firstOutputMs")),
-		fact("TTFT", formatInvocationLatency(turn, "firstTextMs")),
-		fact("Tools", formatNumber(turn.toolCount ?? Object.keys(turn.tools ?? {}).length)),
-		fact("Errors", formatNumber(turn.errorCount ?? 0)),
-		fact("Model requests", formatNumber(turn.modelRequests ?? 0)),
-		fact("Context", formatContext(turn)),
+		fact("First text", formatInvocationLatency(turn, "firstTextMs")),
+		fact("Tools · Errors", `${formatNumber(turn.toolCount ?? Object.keys(turn.tools ?? {}).length)} · ${formatNumber(turn.errorCount ?? 0)}`),
+		fact("Turn usage", formatTurnUsage(turn)),
 	);
 	const signals = deriveSignals(turn);
 	elements.selectedSignals.replaceChildren();
@@ -284,15 +301,33 @@ function factBadge(text, kind) {
 	return badge;
 }
 
+function cardFact(label, value) {
+	const wrapper = document.createElement("span");
+	const name = document.createElement("span");
+	name.textContent = label;
+	const content = document.createElement("strong");
+	content.textContent = value;
+	wrapper.append(name, content);
+	return wrapper;
+}
+
+function turnCardLabel(turn, turnNumber) {
+	const duration = formatDuration(turn.durationMs ?? Math.max(0, Date.now() - turn.startedAt));
+	const tools = turn.toolCount ?? Object.keys(turn.tools ?? {}).length;
+	const errors = turn.errorCount ?? 0;
+	return `Turn ${turnNumber}: ${turn.prompt || "Prompt unavailable"}. ${statusLabel(turn.status)}. ${duration}. First text ${formatInvocationLatency(turn, "firstTextMs")}. ${tools} tool${tools === 1 ? "" : "s"}. ${errors} error${errors === 1 ? "" : "s"}.${turn.partialEvidence ? " Partial evidence." : ""}`;
+}
+
 function restorePreferences() {
 	let saved = {};
 	try { saved = JSON.parse(localStorage.getItem(PREFS_KEY) ?? "{}"); } catch { /* Use defaults. */ }
 	for (const option of optionElements) if (typeof saved[option.id] === "boolean") option.checked = saved[option.id];
 	if (typeof saved.optionsOpen === "boolean") elements.optionsDetails.open = saved.optionsOpen;
+	if (typeof saved.sessionTotalsOpen === "boolean") elements.sessionDetails.open = saved.sessionTotalsOpen;
 }
 
 function savePreferences() {
-	const prefs = { optionsOpen: elements.optionsDetails.open };
+	const prefs = { optionsOpen: elements.optionsDetails.open, sessionTotalsOpen: elements.sessionDetails.open };
 	for (const option of optionElements) prefs[option.id] = option.checked;
 	try { localStorage.setItem(PREFS_KEY, JSON.stringify(prefs)); } catch { /* Private browsing may reject writes. */ }
 }
@@ -301,13 +336,11 @@ function formatModel(model) {
 	return model.name && model.name !== model.id ? `${model.name} (${model.provider}/${model.id})` : `${model.provider}/${model.id}`;
 }
 
-function formatContext(turn) {
-	const start = turn.contextStart?.inputTokens;
-	const end = turn.contextEnd?.inputTokens;
-	if (start === undefined && end === undefined) return "Unavailable";
-	if (start === undefined) return `${formatNumber(end)} tokens`;
-	if (end === undefined) return `${formatNumber(start)} tokens at start`;
-	return `${formatNumber(start)} → ${formatNumber(end)}`;
+function formatTurnUsage(turn) {
+	const usage = turn.usage ?? {};
+	if (usage.inputTokens === undefined && usage.outputTokens === undefined && usage.cost === undefined) return "Unavailable";
+	const tokens = `${usage.inputTokens === undefined ? "—" : formatNumber(usage.inputTokens)} in / ${usage.outputTokens === undefined ? "—" : formatNumber(usage.outputTokens)} out`;
+	return usage.cost === undefined ? tokens : `${tokens} · $${usage.cost.toFixed(4)}`;
 }
 
 function statusLabel(status) { return status === "active" ? "In progress" : status === "interrupted" ? "Interrupted" : "Completed"; }

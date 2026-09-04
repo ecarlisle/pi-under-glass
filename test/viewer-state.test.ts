@@ -64,6 +64,9 @@ test("hydrates trustworthy late-join orientation from hello snapshot", () => {
 	assert.equal(state.currentTurnId, "turn-2");
 	assert.deepEqual(state.turnOrder, ["turn-1", "turn-2"]);
 	assert.equal(state.turns["turn-1"].invocations[0].firstOutputMs, 20);
+	assert.equal(state.session.partialHistory, true);
+	assert.equal(state.turns["turn-1"].partialEvidence, true);
+	assert.equal(state.turns["turn-2"].partialEvidence, true);
 	assert.ok(turnEvidence(state, "turn-2").some((item: { kind: string }) => item.kind === "metadata"));
 });
 

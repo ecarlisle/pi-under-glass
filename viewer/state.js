@@ -1,7 +1,7 @@
 export function createSessionState() {
 	return {
 		connection: "connecting",
-		session: { id: undefined, startedAt: undefined, cwd: "", metrics: emptyMetrics(), model: undefined, thinkingLevel: undefined, endedAt: undefined, contextPoints: [], markers: [] },
+		session: { id: undefined, startedAt: undefined, cwd: "", metrics: emptyMetrics(), model: undefined, thinkingLevel: undefined, endedAt: undefined, contextPoints: [], markers: [], partialHistory: false },
 		turns: {},
 		turnOrder: [],
 		currentTurnId: undefined,
@@ -119,14 +119,15 @@ function applyHello(state, hello) {
 	state.session.metrics = hello.metrics ?? emptyMetrics();
 	const snapshot = hello.snapshot;
 	if (!snapshot) return state;
+	state.session.partialHistory = (snapshot.sequence ?? 0) > 0 && Boolean(snapshot.currentTurn || snapshot.completedTurns?.length || snapshot.evidence?.length || snapshot.markers?.length);
 	state.lastSeq = Math.max(state.lastSeq, snapshot.sequence ?? 0);
 	state.session.model = snapshot.model;
 	state.session.thinkingLevel = snapshot.thinkingLevel;
 	state.session.contextPoints = (snapshot.contextPoints ?? []).map((point) => ({ ...point, snapshot: { ...point.snapshot } }));
 	state.session.markers = (snapshot.markers ?? []).map((marker) => ({ ...marker }));
-	for (const facts of snapshot.completedTurns ?? []) hydrateTurn(state, facts);
+	for (const facts of snapshot.completedTurns ?? []) hydrateTurn(state, facts, true);
 	if (snapshot.currentTurn) {
-		hydrateTurn(state, snapshot.currentTurn);
+		hydrateTurn(state, snapshot.currentTurn, true);
 		state.currentTurnId = snapshot.currentTurn.id;
 	}
 	for (const marker of snapshot.markers ?? []) {
@@ -314,9 +315,9 @@ function applyEvent(state, event) {
 	}
 }
 
-function hydrateTurn(state, facts) {
+function hydrateTurn(state, facts, partialEvidence = false) {
 	const turn = ensureTurn(state, facts.id, normalizeFacts(facts));
-	Object.assign(turn, normalizeFacts(facts));
+	Object.assign(turn, normalizeFacts(facts), partialEvidence ? { partialEvidence: true } : {});
 	return turn;
 }
 

@@ -30,15 +30,15 @@ test("serves the viewer and authenticates WebSocket clients", async (context) =>
 	assert.match(viewer, /Pi Under Glass/);
 	assert.match(viewer, /Session overview/);
 	assert.match(viewer, /Selected turn/);
-	assert.match(viewer, /Outside tools/);
-	assert.match(viewer, /Evidence options/);
-	assert.match(viewer, /> Usage</);
+	assert.match(viewer, /Other turn time/);
+	assert.match(viewer, /Evidence display options/);
+	assert.match(viewer, /Model request facts/);
 	assert.match(viewer, /Tool input/);
 	assert.match(viewer, /Tool results/);
 	assert.match(viewer, /Timestamps/);
-	assert.match(viewer, /Agent processing/);
-	assert.match(viewer, /System prompt/);
-	assert.match(viewer, /Compactions/);
+	assert.match(viewer, /Reasoning trace/);
+	assert.match(viewer, /System prompt sent to model/);
+	assert.match(viewer, /Context compactions/);
 	assert.equal((await fetch(`http://${server.host}:${server.port}/state.js`)).status, 200);
 	assert.equal((await fetch(`http://${server.host}:${server.port}/transcript.js`)).status, 200);
 

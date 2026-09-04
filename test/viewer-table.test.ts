@@ -2,34 +2,47 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-test("Turn overview includes TTFT in its accessible table", async () => {
+test("Viewer prioritizes orientation and keeps detailed totals on demand", async () => {
 	const html = await readFile(new URL("../viewer/index.html", import.meta.url), "utf8");
-	const headerRow = html.match(/<thead>[\s\S]*?<tr>([\s\S]*?)<\/tr>[\s\S]*?<\/thead>/)?.[1] ?? "";
-	const headers = [...headerRow.matchAll(/<th\b([^>]*)>([\s\S]*?)<\/th>/g)];
-	assert.equal(headers.length, 8);
-	assert.deepEqual(headers.map((match) => (match[2] ?? "").replace(/<[^>]+>/g, "").trim()), ["Turn", "Prompt", "Visualization", "Status", "Time", "TTFT", "Tools", "Errors"]);
-	const visualizationHeader = headers[2];
-	assert.ok(visualizationHeader);
-	assert.match(visualizationHeader[1] ?? "", /aria-label="Visualization"/);
-	assert.match(visualizationHeader[2] ?? "", /class="visually-hidden"/);
-	assert.match(headers[5]?.[1] ?? "", /title="Time to first token"/);
-	assert.match(html, /<tbody id="turn-list"><\/tbody>/);
-	assert.match(html, /<i class="legend-error"><\/i>Errors/);
+	assert.match(html, /class="orientation" aria-label="Session orientation"/);
+	assert.match(html, /<span class="status" id="status" aria-live="polite">/);
+	assert.match(html, /<strong id="elapsed">/);
+	assert.match(html, /<strong id="model">/);
+	assert.match(html, /<details class="session-details" id="session-details">/);
+	assert.match(html, /<summary>Session totals<\/summary>/);
+	assert.match(html, /<p class="connection-note" id="connection-note" aria-live="polite">/);
+	assert.doesNotMatch(html, /Event stream/);
 });
 
-test("Turn table stays compact and retains row and ribbon selection", async () => {
+test("Turn cards are one focus stop and preserve TTFT and activity context", async () => {
 	const [app, css] = await Promise.all([
 		readFile(new URL("../viewer/app.js", import.meta.url), "utf8"),
 		readFile(new URL("../viewer/styles.css", import.meta.url), "utf8"),
 	]);
-	assert.match(app, /excerptText\(turn\.prompt \|\| "Prompt unavailable", 21\)/);
-	assert.match(app, /row\.addEventListener\("click", \(\) => chooseTurn\(turnId\)\)/);
-	assert.match(app, /chooseTurn\(turn\.id, segment\.type\)/);
-	assert.match(app, /visualizationCell\.setAttribute\("aria-label", `Turn \$\{turnNumber\} visualization`\)/);
-	assert.match(app, /ttftCell\.textContent = formatInvocationLatency\(turn, "firstTextMs"\)/);
+	assert.match(app, /card\.className = `turn-card/);
+	assert.match(app, /card\.type = "button"/);
+	assert.match(app, /card\.setAttribute\("aria-label", turnCardLabel\(turn, turnNumber\)\)/);
+	assert.match(app, /card\.addEventListener\("click", \(\) => chooseTurn\(turnId\)\)/);
+	assert.doesNotMatch(app, /item\.tabIndex = 0/);
+	assert.match(app, /cardFact\("First text", formatInvocationLatency\(turn, "firstTextMs"\)\)/);
 	assert.match(app, /fact\("First output", formatInvocationLatency\(turn, "firstOutputMs"\)\)/);
-	assert.match(app, /fact\("TTFT", formatInvocationLatency\(turn, "firstTextMs"\)\)/);
-	assert.match(css, /\.turn-table \{[^}]*white-space: nowrap;/);
-	assert.match(css, /\.turn-table td \{[^}]*text-overflow: ellipsis;/);
-	assert.match(css, /\.ribbon-legend \.legend-error \{[^}]*background: var\(--error\);/);
+	assert.match(app, /fact\("First text", formatInvocationLatency\(turn, "firstTextMs"\)\)/);
+	assert.match(app, /turn\.partialEvidence/);
+	assert.match(app, /scrollIntoView\(\{ behavior, block: "start" \}\)/);
+	assert.match(css, /\.turn-card:focus-visible/);
+	assert.match(css, /\.turn-card-facts/);
+});
+
+test("Evidence controls sit beside the selected turn and use plain-language labels", async () => {
+	const [html, transcript] = await Promise.all([
+		readFile(new URL("../viewer/index.html", import.meta.url), "utf8"),
+		readFile(new URL("../viewer/transcript.js", import.meta.url), "utf8"),
+	]);
+	const detail = html.match(/<section class="detail-panel"[\s\S]*?<\/section>/)?.[0] ?? "";
+	assert.match(detail, /<summary>Evidence display options<\/summary>/);
+	assert.match(detail, /Reasoning trace/);
+	assert.match(detail, /System prompt sent to model/);
+	assert.doesNotMatch(html, /<aside class="options">/);
+	assert.match(transcript, /"Reasoning trace"/);
+	assert.match(transcript, /duration unavailable/);
 });
