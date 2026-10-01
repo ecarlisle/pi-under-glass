@@ -29,7 +29,10 @@ export function createEvidenceRenderer(container, getOptions) {
 			const tools = items.filter((item) => item.kind === "tool");
 			const latestTool = tools.at(-1);
 			const latestAssistantAt = Math.max(0, ...items.filter((item) => item.kind === "assistant").map((item) => item.at));
+			const summarized = items.filter((item) => item.kind === "metadata");
+			if (summarized.length > 0) container.append(summaryCard(summarized));
 			for (const item of items) {
+				if (item.kind === "metadata") continue;
 				const node = renderItem(item, options, openState, latestTool?.id === item.id, latestAssistantAt, sessionId);
 				if (node) container.append(node);
 			}
@@ -96,8 +99,6 @@ function renderItem(item, options, openState, isLatestTool, latestAssistantAt, s
 		case "usage":
 			if (!options.showUsage) return undefined;
 			return block(item, "Model request facts", usageText(item.data), "usage-evidence", at);
-		case "metadata":
-			return block(item, "Earlier evidence summary", `${item.data.type}${item.data.label ? ` · ${item.data.label}` : ""}`, "metadata-evidence", at);
 		default:
 			return undefined;
 	}
@@ -113,6 +114,14 @@ function block(item, title, text, className, timestamp) {
 	body.textContent = text ?? "";
 	wrapper.append(body);
 	return wrapper;
+}
+
+function summaryCard(items) {
+	const counts = new Map();
+	for (const item of items) counts.set(item.data.type, (counts.get(item.data.type) ?? 0) + 1);
+	const names = [...counts].map(([type, count]) => (count > 1 ? `${type} ×${count}` : type)).join(", ");
+	const text = `Pi reported ${items.length} event${items.length === 1 ? "" : "s"} before this viewer connected (${names}). Their content was not retained.`;
+	return block({ id: "metadata-summary" }, "Earlier activity (summary only)", text, "metadata-evidence", undefined);
 }
 
 function details(id, title, text, className, defaultOpen, openState, sessionId, markdown = false) {
@@ -136,7 +145,8 @@ function header(title, timestamp) {
 	row.className = "evidence-header";
 	const heading = document.createElement("strong");
 	heading.textContent = title;
-	row.append(heading, timestamp);
+	row.append(heading);
+	if (timestamp) row.append(timestamp);
 	return row;
 }
 

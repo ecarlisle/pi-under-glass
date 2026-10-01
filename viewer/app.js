@@ -281,7 +281,10 @@ function fact(label, value) {
 	const name = document.createElement("span");
 	name.textContent = label;
 	const content = document.createElement("strong");
-	content.textContent = value;
+	const missing = value === "—";
+	content.textContent = missing ? "Not observed" : value;
+	if (missing) content.title = "Not observed: the event that marks this was not seen by this viewer.";
+	else if (value.length > 14) content.title = value;
 	wrapper.append(name, content);
 	return wrapper;
 }
@@ -298,7 +301,10 @@ function cardFact(label, value) {
 	const name = document.createElement("span");
 	name.textContent = label;
 	const content = document.createElement("strong");
+	const missing = value === "—";
 	content.textContent = value;
+	if (missing) content.title = "Not observed: the event that marks this was not seen by this viewer.";
+	else if (value.length > 14) content.title = value;
 	wrapper.append(name, content);
 	return wrapper;
 }
