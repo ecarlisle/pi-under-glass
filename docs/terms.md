@@ -1,5 +1,7 @@
 # Terminology
 
+**Use when:** Naming or describing sessions, turns, messages, usage, or latency in code, UI, or docs
+
 - **Session:** The whole Pi conversation/container, including its messages, Turns, and session-level state changes. Session usage rolls up all completed model invocations.
 - **Turn:** One execution of a User goal or prompt. A Turn begins with the User prompt and can contain multiple model invocations, assistant messages, tool calls, and tool results.
 - **Model invocation:** One request to a model provider and its response. This is the authoritative unit for provider-reported usage; a Turn may contain more than one.
