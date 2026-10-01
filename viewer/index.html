@@ -14,39 +14,36 @@
 					<span class="status" id="status" aria-live="polite">Connecting</span>
 					<div class="orientation-fact"><span>Elapsed</span><strong id="elapsed">0ms</strong></div>
 					<div class="orientation-fact"><span>Model</span><strong id="model">Unavailable</strong></div>
-					<details class="session-details" id="session-details">
-						<summary>Session totals</summary>
-						<div class="session-facts" aria-label="Session totals">
-							<div><span>Requests · Tools</span><strong id="activity">0 requests · 0 tools</strong></div>
-							<div><span>Tokens</span><strong id="tokens">Unavailable</strong></div>
-							<div><span>Cache</span><strong id="cache">Unavailable</strong></div>
-							<div><span>Cost</span><strong id="cost">Unavailable</strong></div>
-							<div><span>Latest context</span><strong id="context-value">Unavailable</strong></div>
-							<div><span>Thinking level</span><strong id="thinking-level">Unavailable</strong></div>
-						</div>
-					</details>
-					<details class="options-inner" id="options-details">
-						<summary>Evidence display options</summary>
-						<div class="options-body">
-							<div class="options-group">
-								<span>Show</span>
-								<label><input id="show-usage" type="checkbox" checked /> Model request facts</label>
-								<label><input id="show-tool-input" type="checkbox" checked /> Tool input</label>
-								<label><input id="show-tool-results" type="checkbox" checked /> Tool results</label>
-								<label><input id="show-timestamps" type="checkbox" /> Timestamps</label>
-								<label><input id="show-thinking" type="checkbox" checked /> Reasoning trace</label>
-								<label><input id="show-system-prompt" type="checkbox" /> System prompt sent to model</label>
-							</div>
-							<div class="options-group">
-								<span>Default expanded</span>
-								<label><input id="expand-thinking" type="checkbox" /> Reasoning traces</label>
-								<label><input id="expand-tools" type="checkbox" /> Tools</label>
-								<label><input id="expand-compactions" type="checkbox" /> Context compactions</label>
-							</div>
-						</div>
-					</details>
 				</div>
 			</div>
+			<div class="session-facts" aria-label="Session totals">
+				<div><span>Requests · Tools</span><strong id="activity">0 requests · 0 tools</strong></div>
+				<div><span>Tokens</span><strong id="tokens">Unavailable</strong></div>
+				<div><span>Cache</span><strong id="cache">Unavailable</strong></div>
+				<div><span>Cost</span><strong id="cost">Unavailable</strong></div>
+				<div><span>Latest context</span><strong id="context-value">Unavailable</strong></div>
+				<div><span>Thinking level</span><strong id="thinking-level">Unavailable</strong></div>
+			</div>
+			<details class="options-inner" id="options-details">
+				<summary>Evidence display options</summary>
+				<div class="options-body">
+					<div class="options-group">
+						<span>Show</span>
+						<label><input id="show-usage" type="checkbox" checked /> Model request facts</label>
+						<label><input id="show-tool-input" type="checkbox" checked /> Tool input</label>
+						<label><input id="show-tool-results" type="checkbox" checked /> Tool results</label>
+						<label><input id="show-timestamps" type="checkbox" /> Timestamps</label>
+						<label><input id="show-thinking" type="checkbox" checked /> Reasoning trace</label>
+						<label><input id="show-system-prompt" type="checkbox" /> System prompt sent to model</label>
+					</div>
+					<div class="options-group">
+						<span>Default expanded</span>
+						<label><input id="expand-thinking" type="checkbox" /> Reasoning traces</label>
+						<label><input id="expand-tools" type="checkbox" /> Tools</label>
+						<label><input id="expand-compactions" type="checkbox" /> Context compactions</label>
+					</div>
+				</div>
+			</details>
 			<p class="connection-note" id="connection-note" aria-live="polite">Opening a read-only view of this local Pi session.</p>
 		</header>
 

@@ -2,7 +2,7 @@ import { buildRibbonSegments, createSessionState, deriveSignals, reduceIncoming,
 import { createEvidenceRenderer } from "./transcript.js";
 
 const elements = Object.fromEntries([
-	"status", "elapsed", "activity", "tokens", "cost", "context-value", "model", "thinking-level", "connection-note", "session-details",
+	"status", "elapsed", "activity", "tokens", "cost", "context-value", "model", "thinking-level", "connection-note",
 	"app-message", "app-message-badge", "app-message-title", "app-message-text", "workspace", "turn-detail",
 	"cache", "turn-list", "selected-kicker", "selected-title", "selected-prompt", "selected-facts", "selected-signals", "agent-reported", "evidence",
 	"options-details", "show-usage", "show-tool-input", "show-tool-results", "show-timestamps", "show-thinking",
@@ -22,8 +22,6 @@ let nextRetryMs;
 
 restorePreferences();
 for (const option of optionElements) option.addEventListener("change", () => { savePreferences(); render(); });
-elements.optionsDetails.addEventListener("toggle", savePreferences);
-elements.sessionDetails.addEventListener("toggle", savePreferences);
 
 const evidenceRenderer = createEvidenceRenderer(elements.evidence, () => ({
 	showUsage: elements.showUsage.checked,
@@ -335,12 +333,10 @@ function restorePreferences() {
 	let saved = {};
 	try { saved = JSON.parse(localStorage.getItem(PREFS_KEY) ?? "{}"); } catch { /* Use defaults. */ }
 	for (const option of optionElements) if (typeof saved[option.id] === "boolean") option.checked = saved[option.id];
-	if (typeof saved.optionsOpen === "boolean") elements.optionsDetails.open = saved.optionsOpen;
-	if (typeof saved.sessionTotalsOpen === "boolean") elements.sessionDetails.open = saved.sessionTotalsOpen;
 }
 
 function savePreferences() {
-	const prefs = { optionsOpen: elements.optionsDetails.open, sessionTotalsOpen: elements.sessionDetails.open };
+	const prefs = {};
 	for (const option of optionElements) prefs[option.id] = option.checked;
 	try { localStorage.setItem(PREFS_KEY, JSON.stringify(prefs)); } catch { /* Private browsing may reject writes. */ }
 }
@@ -388,3 +384,7 @@ setInterval(() => {
 render();
 if (debug) void playDebugFixture();
 else connect();
+
+// The header grows with its content (totals row, options panel), so sticky offsets track its real height.
+const appHeader = document.querySelector(".app-header");
+new ResizeObserver(() => document.documentElement.style.setProperty("--header-h", `${appHeader.offsetHeight}px`)).observe(appHeader);

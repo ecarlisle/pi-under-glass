@@ -8,8 +8,9 @@ test("Viewer prioritizes orientation and keeps detailed totals on demand", async
 	assert.match(html, /<span class="status" id="status" aria-live="polite">/);
 	assert.match(html, /<strong id="elapsed">/);
 	assert.match(html, /<strong id="model">/);
-	assert.match(html, /<details class="session-details" id="session-details">/);
-	assert.match(html, /<summary>Session totals<\/summary>/);
+	// Session totals are always visible, not behind a disclosure.
+	assert.match(html, /<div class="session-facts" aria-label="Session totals">/);
+	assert.doesNotMatch(html, /session-details/);
 	assert.match(html, /<p class="connection-note" id="connection-note" aria-live="polite">/);
 	assert.doesNotMatch(html, /Event stream/);
 });
