@@ -25,3 +25,4 @@ Read each guide whose trigger matches the task. Load other documentation only as
 | Running, testing, smoke-testing, or packaging the extension | [Development and validation](docs/development.md) |
 | Naming or describing sessions, turns, messages, usage, or latency in code, UI, or docs | [Terminology](docs/terms.md) |
 | Changing viewer visuals, layout, colors, typography, or components | [Design system](.stitch/DESIGN.md) |
+| Generating live session activity to check how the viewer displays it | [Viewer test prompts](docs/test-prompts.md) |
