@@ -1,10 +1,10 @@
-import { buildRibbonSegments, createSessionState, deriveSignals, reduceIncoming, selectTurn, selectedTurn } from "./state.js";
+import { buildRibbonSegments, createSessionState, deriveSignals, reduceIncoming, selectTurn, selectedTurn, timelineMarkers, turnLatency } from "./state.js";
 import { createEvidenceRenderer } from "./transcript.js";
 
 const elements = Object.fromEntries([
 	"status", "elapsed", "activity", "tokens", "cost", "context-value", "model", "thinking-level", "connection-note", "session-details",
 	"app-message", "app-message-badge", "app-message-title", "app-message-text", "workspace", "turn-detail",
-	"turn-list", "selected-kicker", "selected-title", "selected-prompt", "selected-facts", "selected-signals", "agent-reported", "evidence",
+	"cache", "turn-list", "selected-kicker", "selected-title", "selected-prompt", "selected-facts", "selected-signals", "agent-reported", "evidence",
 	"options-details", "show-usage", "show-tool-input", "show-tool-results", "show-timestamps", "show-thinking",
 	"show-system-prompt", "expand-thinking", "expand-tools", "expand-compactions",
 ].map((id) => [camel(id), document.querySelector(`#${id}`)]));
@@ -142,6 +142,7 @@ function renderSessionFacts() {
 	elements.activity.textContent = `${formatNumber(metrics.modelRequests)} request${metrics.modelRequests === 1 ? "" : "s"} · ${formatNumber(metrics.tools)} tool${metrics.tools === 1 ? "" : "s"}`;
 	const usage = metrics.usage ?? {};
 	elements.tokens.textContent = usage.inputTokens === undefined && usage.outputTokens === undefined ? "Unavailable" : `${usage.inputTokens === undefined ? "—" : formatNumber(usage.inputTokens)} in / ${usage.outputTokens === undefined ? "—" : formatNumber(usage.outputTokens)} out`;
+	elements.cache.textContent = formatCache(usage).replace(/^cache /, "") || "Unavailable";
 	elements.cost.textContent = usage.cost === undefined ? "Unavailable" : `$${usage.cost.toFixed(4)}`;
 	const latestContext = metrics.latestContext ?? state.session.contextPoints.at(-1)?.snapshot;
 	elements.contextValue.textContent = latestContext ? `${formatNumber(latestContext.inputTokens)}${latestContext.contextWindow ? ` / ${formatNumber(latestContext.contextWindow)}` : ""} tokens` : "Unavailable";
@@ -173,9 +174,12 @@ function renderTurnList() {
 		elements.turnList.append(empty);
 		return;
 	}
+	const markers = timelineMarkers(state.session.markers ?? [], state.turnOrder.map((id) => state.turns[id].startedAt));
+	let nextMarker = 0;
 	state.turnOrder.forEach((turnId, index) => {
 		const turn = state.turns[turnId];
 		const turnNumber = index + 1;
+		while (nextMarker < markers.length && markers[nextMarker].at < turn.startedAt) elements.turnList.append(markerRow(markers[nextMarker++]));
 		const card = document.createElement("button");
 		card.className = `turn-card${state.selectedTurnId === turnId ? " selected" : ""}`;
 		card.type = "button";
@@ -209,6 +213,17 @@ function renderTurnList() {
 		card.append(heading, renderRibbon(turn, turnNumber), facts);
 		elements.turnList.append(card);
 	});
+	while (nextMarker < markers.length) elements.turnList.append(markerRow(markers[nextMarker++]));
+}
+
+function markerRow(marker) {
+	const row = document.createElement("div");
+	row.className = `session-marker session-marker--${marker.type}`;
+	const label = marker.type === "model" ? "Model" : marker.type === "thinking" ? "Thinking" : marker.type === "compaction" ? "Context compacted" : "Session change";
+	const change = marker.to !== undefined ? `${marker.from} → ${marker.to}` : marker.detail;
+	row.textContent = change ? `${label}: ${change}` : label;
+	row.title = marker.count > 1 ? `${marker.count} changes in a row; showing first and last.` : `Session marker at ${new Date(marker.at).toLocaleTimeString()}`;
+	return row;
 }
 
 function renderRibbon(turn, turnNumber) {
@@ -220,7 +235,7 @@ function renderRibbon(turn, turnNumber) {
 		item.className = `ribbon-segment ribbon-segment--${segment.type}`;
 		item.style.left = `${segment.left}%`;
 		item.style.width = `${segment.width}%`;
-		item.title = segment.type === "error" ? "Tool error" : segment.type === "tool" ? "Tool activity" : segment.type === "response" ? "Assistant response" : "Other turn time";
+		item.title = segment.type === "error" ? "Tool error" : segment.type === "tool" ? "Tool activity" : segment.type === "reasoning" ? "Reasoning before first text" : segment.type === "response" ? "Assistant response" : "Other turn time";
 		item.setAttribute("aria-hidden", "true");
 		ribbon.append(item);
 	}
@@ -334,16 +349,23 @@ function formatModel(model) {
 	return model.name && model.name !== model.id ? `${model.name} (${model.provider}/${model.id})` : `${model.provider}/${model.id}`;
 }
 
+function formatCache(usage) {
+	if (usage.cacheReadTokens === undefined && usage.cacheWriteTokens === undefined) return "";
+	return `cache ${usage.cacheReadTokens === undefined ? "—" : formatNumber(usage.cacheReadTokens)} read / ${usage.cacheWriteTokens === undefined ? "—" : formatNumber(usage.cacheWriteTokens)} write`;
+}
+
 function formatTurnUsage(turn) {
 	const usage = turn.usage ?? {};
 	if (usage.inputTokens === undefined && usage.outputTokens === undefined && usage.cost === undefined) return "Unavailable";
 	const tokens = `${usage.inputTokens === undefined ? "—" : formatNumber(usage.inputTokens)} in / ${usage.outputTokens === undefined ? "—" : formatNumber(usage.outputTokens)} out`;
-	return usage.cost === undefined ? tokens : `${tokens} · $${usage.cost.toFixed(4)}`;
+	const cache = formatCache(usage);
+	const withCache = cache ? `${tokens} · ${cache}` : tokens;
+	return usage.cost === undefined ? withCache : `${withCache} · $${usage.cost.toFixed(4)}`;
 }
 
 function statusLabel(status) { return status === "active" ? "In progress" : status === "interrupted" ? "Interrupted" : "Completed"; }
 function formatInvocationLatency(turn, field) {
-	const value = turn.invocations?.[0]?.[field];
+	const value = turnLatency(turn, field);
 	return Number.isFinite(value) ? formatDuration(value) : "—";
 }
 function formatDuration(milliseconds) {

@@ -55,11 +55,19 @@ export function buildRibbonSegments(turn, now = Date.now()) {
 		.filter((tool) => Number.isFinite(tool.startedAt))
 		.map((tool) => ({ start: clamp(tool.startedAt, start, end), end: clamp(tool.endedAt ?? now, start, end), isError: tool.isError === true }))
 		.filter((interval) => interval.end >= interval.start);
+	const reasoning = (turn.invocations ?? [])
+		.filter((item) => Number.isFinite(item.startedAt) && Number.isFinite(item.firstOutputMs) && Number.isFinite(item.firstTextMs) && item.firstTextMs > item.firstOutputMs)
+		.map((item) => ({ start: clamp(item.startedAt + item.firstOutputMs, start, end), end: clamp(item.startedAt + item.firstTextMs, start, end) }))
+		.filter((interval) => interval.end > interval.start);
 	const response = turn.responseStartedAt
 		? { start: clamp(turn.responseStartedAt, start, end), end: clamp(turn.responseEndedAt ?? now, start, end) }
 		: undefined;
 	const boundaries = new Set([start, end]);
 	for (const interval of tools) {
+		boundaries.add(interval.start);
+		boundaries.add(interval.end);
+	}
+	for (const interval of reasoning) {
 		boundaries.add(interval.start);
 		boundaries.add(interval.end);
 	}
@@ -76,9 +84,11 @@ export function buildRibbonSegments(turn, now = Date.now()) {
 		const matchingTool = tools.find((interval) => middle >= interval.start && middle <= interval.end);
 		const type = matchingTool
 			? matchingTool.isError ? "error" : "tool"
-			: response && middle >= response.start && middle <= response.end
-				? "response"
-				: "outside";
+			: reasoning.some((interval) => middle >= interval.start && middle <= interval.end)
+				? "reasoning"
+				: response && middle >= response.start && middle <= response.end
+					? "response"
+					: "outside";
 		const previous = segments.at(-1);
 		if (previous?.type === type) previous.end = intervalEnd;
 		else segments.push({ type, start: intervalStart, end: intervalEnd });
@@ -88,6 +98,38 @@ export function buildRibbonSegments(turn, now = Date.now()) {
 		left: ((segment.start - start) / duration) * 100,
 		width: Math.max(0.8, ((segment.end - segment.start) / duration) * 100),
 	}));
+}
+
+// Earliest observed latency across a Turn's model invocations, measured from the Turn start.
+// A tool turn's first invocation often has no text, so reading only invocation 0 would hide a real value.
+export function turnLatency(turn, field) {
+	let best;
+	(turn.invocations ?? []).forEach((invocation, index) => {
+		const value = invocation[field];
+		if (!Number.isFinite(value)) return;
+		const offset = index === 0 ? 0 : Number.isFinite(invocation.startedAt) && Number.isFinite(turn.startedAt) ? Math.max(0, invocation.startedAt - turn.startedAt) : undefined;
+		if (offset === undefined) return;
+		if (best === undefined || offset + value < best) best = offset + value;
+	});
+	return best;
+}
+
+// Session markers for the turn list: consecutive changes of one kind with no Turn between them collapse into one "first → last" row.
+export function timelineMarkers(markers, turnStarts = []) {
+	const rows = [];
+	for (const marker of [...markers].sort((a, b) => a.at - b.at)) {
+		const [from, to] = String(marker.detail ?? "").split(" → ");
+		const previous = rows.at(-1);
+		const separatedByTurn = previous && turnStarts.some((startedAt) => startedAt > previous.endedAt && startedAt <= marker.at);
+		if (previous && !separatedByTurn && previous.type === marker.type && marker.type !== "compaction" && to !== undefined && previous.to !== undefined) {
+			previous.to = to;
+			previous.count += 1;
+			previous.endedAt = marker.at;
+			continue;
+		}
+		rows.push({ type: marker.type, at: marker.at, endedAt: marker.at, from, to, detail: marker.detail, count: 1 });
+	}
+	return rows.filter((row) => row.type === "compaction" || row.to === undefined || row.from !== row.to);
 }
 
 export function deriveSignals(turn) {
@@ -180,7 +222,7 @@ function applyEvent(state, event) {
 			state.session.model = data.model;
 			state.session.thinkingLevel = data.thinkingLevel ?? state.session.thinkingLevel;
 			if (state.currentTurnId) addEvidence(state, state.currentTurnId, `marker:${event.seq}`, { kind: "marker", at: event.at, data: { type: event.type, ...data } });
-			state.session.markers.push({ type: "model", at: event.at, turnId: state.currentTurnId, detail: "Model changed" });
+			state.session.markers.push({ type: "model", at: event.at, turnId: state.currentTurnId, detail: data.previousModel ? `${data.previousModel.id} → ${data.model?.id}` : data.model?.id ?? "Model changed" });
 			break;
 		case "session.thinking.changed":
 			state.session.thinkingLevel = data.level;

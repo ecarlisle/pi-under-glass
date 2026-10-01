@@ -5,7 +5,7 @@ import test from "node:test";
 // The browser state module is intentionally plain JavaScript so the dependency-free viewer can
 // import it directly. Its behavior is covered here through the same public reducer API.
 // @ts-expect-error The standalone browser module does not ship TypeScript declarations.
-import { buildRibbonSegments, createSessionState, deriveSignals, reduceIncoming, turnEvidence } from "../viewer/state.js";
+import { buildRibbonSegments, createSessionState, deriveSignals, reduceIncoming, timelineMarkers, turnEvidence, turnLatency } from "../viewer/state.js";
 
 const hello = {
 	v: 2,
@@ -164,4 +164,51 @@ test("normalizes the legacy sample fixture into one turn per user prompt", async
 		"Run the missing-suite check and recover cleanly if it fails.",
 	]);
 	assert.equal(state.selectedTurnId, state.turnOrder[2]);
+});
+
+test("turn first text comes from the first invocation that produced text, measured from the Turn start", () => {
+	const turn = {
+		startedAt: 1000,
+		invocations: [
+			{ startedAt: 1000, firstOutputMs: 2500 },
+			{ startedAt: 7000, firstOutputMs: 8000 },
+			{ startedAt: 22000, firstOutputMs: 4600, firstTextMs: 7800 },
+		],
+	};
+	assert.equal(turnLatency(turn, "firstOutputMs"), 2500);
+	assert.equal(turnLatency(turn, "firstTextMs"), 21000 + 7800);
+	assert.equal(turnLatency({ startedAt: 0, invocations: [{ startedAt: 0 }] }, "firstTextMs"), undefined);
+});
+
+test("ribbon separates reasoning time between first output and first text", () => {
+	const segments = buildRibbonSegments({
+		startedAt: 0,
+		endedAt: 20_000,
+		responseStartedAt: 16_600,
+		responseEndedAt: 20_000,
+		tools: {},
+		invocations: [{ startedAt: 0, firstOutputMs: 1800, firstTextMs: 16_600 }],
+	});
+	const reasoning = segments.find((segment: { type: string }) => segment.type === "reasoning");
+	assert.ok(reasoning);
+	assert.equal(Math.round(reasoning.start), 1800);
+	assert.equal(Math.round(reasoning.end), 16_600);
+	assert.ok(segments.some((segment: { type: string }) => segment.type === "response"));
+});
+
+test("session markers between turns collapse consecutive changes into one first-to-last row", () => {
+	const rows = timelineMarkers([
+		{ type: "model", at: 10, detail: "ollama/qwen3.5:9b → opencode-go/minimax-m3" },
+		{ type: "model", at: 500, detail: "opencode-go/minimax-m3 → opencode-go/qwen3.8-flash" },
+		{ type: "thinking", at: 510, detail: "high → off" },
+		{ type: "thinking", at: 520, detail: "off → minimal" },
+		{ type: "thinking", at: 530, detail: "minimal → medium" },
+	], [100]);
+	// The first two model changes straddle a Turn start (100), so they stay separate.
+	assert.deepEqual(rows.map((row: { type: string; from: string; to: string; count: number }) => [row.type, row.from, row.to, row.count]), [
+		["model", "ollama/qwen3.5:9b", "opencode-go/minimax-m3", 1],
+		["model", "opencode-go/minimax-m3", "opencode-go/qwen3.8-flash", 1],
+		["thinking", "high", "medium", 3],
+	]);
+	assert.equal(timelineMarkers([{ type: "thinking", at: 1, detail: "high → low" }, { type: "thinking", at: 2, detail: "low → high" }]).length, 0);
 });

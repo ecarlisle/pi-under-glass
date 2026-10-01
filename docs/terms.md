@@ -16,7 +16,7 @@
 - **Thinking:** Intermediate model content exposed by Pi as a `thinking` content block. It is distinct from provider-reported Reasoning tokens.
 - **Reasoning tokens:** A provider-reported usage category. It does not necessarily correspond to the visible Thinking content.
 - **Event:** A timestamped lifecycle or streaming update about a Session, Turn, model invocation, Message, or tool execution.
-- **Context snapshot:** The latest model invocation's input-token usage compared with the model's context-window capacity. It is not cumulative usage.
+- **Context snapshot:** The latest model invocation's total input (uncached plus cache-read and cache-write tokens) compared with the model's context-window capacity. It is not cumulative usage.
 - **Session marker:** A compact, non-dialogue transcript separator for a meaningful state change, such as selecting a different model or Thinking level, or compacting Context.
 - **Context compaction:** Pi's replacement of older Context with a saved summary, followed by the recent Messages kept after the compaction boundary. The viewer records why it happened and the token estimate before compaction; the retained summary is available in a collapsed disclosure.
 
@@ -28,4 +28,4 @@ User and Agent are the dialogue participants. Agent is the viewer label for Pi's
 
 Per-invocation usage comes directly from Pi's provider-reported values. Turn and Session figures sum completed model invocations only. Total input processed is cumulative provider-reported input, not context size. The latest-request Context snapshot is separate: it shows that request's input tokens and the model context-window capacity when Pi exposes it. Missing values are not estimated.
 
-Per-invocation wall time, TTFO, and TTFT are measured from Pi lifecycle events. TTFO and TTFT remain unavailable when the corresponding streaming delta was not observed.
+Per-invocation wall time, TTFO, and TTFT are measured from Pi lifecycle events. A Turn's first output and first text use the earliest model invocation that observed them, measured from the Turn start. TTFO and TTFT remain unavailable when the corresponding streaming delta was not observed.

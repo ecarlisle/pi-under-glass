@@ -51,8 +51,10 @@ test("publishes user-goal Turn facts and hydrates a late viewer", async () => {
 	await handlers.get("message_update")?.({ assistantMessageEvent: { type: "text_delta", delta: "Done." } }, context);
 	await handlers.get("message_end")?.({ message: { role: "assistant", content: "Done." } }, context);
 	const invocationCompleted = waitForEvent(socket, "turn.usage");
-	await handlers.get("turn_end")?.({ message: { role: "assistant", content: "Done.", usage: { input: 0, output: 0, cost: { total: 0 } } } }, context);
+	await handlers.get("turn_end")?.({ message: { role: "assistant", content: "Done.", usage: { input: 0, output: 0, cacheRead: 40, cacheWrite: 60, cost: { total: 0 } } } }, context);
 	const invocationEvent = await invocationCompleted;
+	// Context counts cached input too, otherwise a fully cached request would report ~0.
+	assert.equal(invocationEvent.data.contextSnapshot.inputTokens, 100);
 	assert.equal(invocationEvent.data.id, "invocation-1");
 	assert.equal(typeof invocationEvent.data.firstOutputMs, "number");
 	assert.equal(typeof invocationEvent.data.firstTextMs, "number");

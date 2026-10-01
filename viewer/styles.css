@@ -72,7 +72,8 @@ h3 { margin-bottom: 0; font-size: 13px; }
 	text-transform: uppercase;
 	cursor: pointer;
 }
-.session-facts { display: grid; grid-template-columns: repeat(5, minmax(110px, 1fr)); gap: 1px; margin-top: 10px; padding: 1px; border-radius: 8px; overflow: hidden; background: var(--border); }
+.session-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1px; margin-top: 10px; padding: 1px; border-radius: 8px; overflow: hidden; background: var(--border); }
+.session-facts strong { max-width: none; overflow: visible; text-overflow: clip; white-space: normal; overflow-wrap: anywhere; }
 .session-facts > div { min-width: 0; padding: 9px 12px; background: var(--surface); }
 .connection-note { margin: 8px 0 0; color: var(--muted); font-size: 12px; line-height: 1.4; }
 
@@ -94,6 +95,7 @@ h3 { margin-bottom: 0; font-size: 13px; }
 .legend-outside { background: #536158; }
 .legend-tool { background: var(--tool); }
 .legend-response { background: var(--agent); }
+.legend-reasoning { background: var(--usage); }
 .legend-error { background: var(--error); }
 
 .turn-list { padding: 6px; }
@@ -114,6 +116,8 @@ h3 { margin-bottom: 0; font-size: 13px; }
 .ribbon-segment--tool { background: var(--tool); }
 .ribbon-segment--response { background: var(--agent); }
 .ribbon-segment--error { background: var(--error); }
+.ribbon-segment--reasoning { background: var(--usage); }
+.session-marker { margin: 2px 0; padding: 4px 10px; border-left: 2px solid var(--border); color: var(--muted); font: 600 10px/1.4 var(--mono); }
 .turn-card-facts { justify-content: space-between; gap: 12px; }
 .turn-card-facts > span { min-width: 0; }
 .turn-card-facts strong { color: var(--muted); font: 600 10px/1.2 var(--mono); }

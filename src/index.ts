@@ -462,8 +462,9 @@ export default function piUnderGlass(pi: PiApi): void {
 		latestContext = undefined;
 		if (usage.inputTokens !== undefined) {
 			const contextWindow = context.model?.contextWindow;
+			// Providers report cached input separately; the context the model actually received includes it.
 			latestContext = {
-				inputTokens: usage.inputTokens,
+				inputTokens: usage.inputTokens + (usage.cacheReadTokens ?? 0) + (usage.cacheWriteTokens ?? 0),
 				...(typeof contextWindow === "number" && contextWindow > 0 ? { contextWindow } : {}),
 			};
 			invocation.sessionTurn.contextEnd = latestContext;
