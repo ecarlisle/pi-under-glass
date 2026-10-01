@@ -59,8 +59,8 @@ h3 { margin-bottom: 0; font-size: 13px; }
 .status--connecting, .status--reconnecting { border-color: #765a2b; color: var(--tool); }
 .status--ended { border-color: #59605b; background: #1d211f; color: var(--text); }
 .status--missing-token, .status--sample-error { border-color: #78433f; background: #291817; color: var(--error); }
-.session-details { flex: 0 0 auto; }
-.session-details[open] { flex-basis: 100%; }
+.session-details, .options-inner { flex: 0 0 auto; }
+.session-details[open], .options-inner[open] { flex-basis: 100%; }
 .session-details > summary, .options-inner > summary {
 	padding: 7px 10px;
 	border: 1px solid var(--border);
@@ -112,11 +112,11 @@ h3 { margin-bottom: 0; font-size: 13px; }
 .ribbon-segment--outside { background: #536158; }
 .ribbon-segment--tool { background: var(--tool); }
 .ribbon-segment--response { background: var(--agent); }
+.ribbon-segment--error { background: var(--error); }
 .turn-card-facts { justify-content: space-between; gap: 12px; }
 .turn-card-facts > span { min-width: 0; }
 .turn-card-facts strong { color: var(--muted); font: 600 10px/1.2 var(--mono); }
 .turn-error-count strong { color: var(--error); }
-.turn-partial { display: block; margin-top: 8px; color: var(--usage); font: 600 9px/1.3 var(--mono); letter-spacing: .02em; text-transform: uppercase; }
 .fact-badge { display: inline-flex; flex: 0 0 auto; padding: 3px 6px; border: 1px solid var(--border); border-radius: 999px; color: var(--muted); font: 600 9px/1 var(--mono); }
 .fact-badge--active { border-color: #3c704d; color: var(--agent); }
 .fact-badge--error { border-color: #78433f; color: var(--error); }
@@ -126,13 +126,12 @@ h3 { margin-bottom: 0; font-size: 13px; }
 .selected-facts { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 1px; padding: 1px; border-bottom: 1px solid var(--border); background: var(--border); }
 .selected-facts > div { min-width: 0; padding: 10px; background: var(--surface); }
 .selected-facts strong { display: block; overflow: hidden; font: 600 10px/1.3 var(--mono); white-space: nowrap; text-overflow: ellipsis; }
-.partial-notice { margin: 12px 18px 0; padding: 9px 11px; border: 1px solid #625887; border-radius: 6px; background: #201d2a; color: var(--usage); font: 600 10px/1.45 var(--mono); }
 .selected-signals { margin: 12px 18px 0; padding: 10px 12px 10px 28px; border: 1px solid #54492f; border-radius: 6px; background: #211d15; color: #d7c49b; font: 11px/1.55 var(--mono); }
 .agent-reported { margin: 12px 18px 0; padding: 11px 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); }
 .agent-reported strong { color: var(--muted); font: 600 9px/1 var(--mono); letter-spacing: .04em; text-transform: uppercase; }
 .agent-reported p { margin: 6px 0 0; font-size: 12px; line-height: 1.5; }
 
-.options-inner { margin: 14px 18px 0; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
+.options-inner { border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
 .options-inner > summary { border: 0; background: transparent; }
 .options-body, .options-group { display: flex; flex-wrap: wrap; gap: 10px 22px; }
 .options-body { padding: 4px 12px 12px; gap: 18px 34px; }
@@ -160,6 +159,10 @@ h3 { margin-bottom: 0; font-size: 13px; }
 .markdown { white-space: normal; }
 .markdown p:last-child { margin-bottom: 0; }
 .markdown pre { overflow: auto; }
+.markdown hr { margin: 12px 0; border: 0; border-top: 1px solid var(--border); }
+.markdown table { margin: 10px 0; border-collapse: collapse; font-size: 12px; }
+.markdown th, .markdown td { padding: 5px 10px; border: 1px solid var(--border); text-align: left; }
+.markdown th { color: var(--muted); font: 600 10px/1.3 var(--mono); text-transform: uppercase; background: var(--surface-2); }
 .nested-evidence { margin-top: 10px; padding: 9px 10px; border: 1px solid var(--border); border-radius: 5px; background: var(--canvas); }
 .nested-evidence > summary { color: var(--muted); font: 600 10px/1.4 var(--mono); cursor: pointer; text-transform: uppercase; }
 .nested-evidence .evidence-body { margin-top: 8px; }
@@ -193,7 +196,7 @@ h3 { margin-bottom: 0; font-size: 13px; }
 	.header-main { display: block; }
 	.orientation { justify-content: flex-start; margin-top: 12px; }
 	.orientation .status { order: -1; }
-	.session-details[open] { width: 100%; }
+	.session-details[open], .options-inner[open] { width: 100%; }
 	.session-facts { grid-template-columns: 1fr 1fr; }
 	.panel-heading { display: block; }
 	.ribbon-legend { justify-content: flex-start; margin-top: 10px; }

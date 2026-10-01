@@ -24,6 +24,26 @@
 							<div><span>Thinking level</span><strong id="thinking-level">Unavailable</strong></div>
 						</div>
 					</details>
+					<details class="options-inner" id="options-details">
+						<summary>Evidence display options</summary>
+						<div class="options-body">
+							<div class="options-group">
+								<span>Show</span>
+								<label><input id="show-usage" type="checkbox" checked /> Model request facts</label>
+								<label><input id="show-tool-input" type="checkbox" checked /> Tool input</label>
+								<label><input id="show-tool-results" type="checkbox" checked /> Tool results</label>
+								<label><input id="show-timestamps" type="checkbox" /> Timestamps</label>
+								<label><input id="show-thinking" type="checkbox" checked /> Reasoning trace</label>
+								<label><input id="show-system-prompt" type="checkbox" /> System prompt sent to model</label>
+							</div>
+							<div class="options-group">
+								<span>Default expanded</span>
+								<label><input id="expand-thinking" type="checkbox" /> Reasoning traces</label>
+								<label><input id="expand-tools" type="checkbox" /> Tools</label>
+								<label><input id="expand-compactions" type="checkbox" /> Context compactions</label>
+							</div>
+						</div>
+					</details>
 				</div>
 			</div>
 			<p class="connection-note" id="connection-note" aria-live="polite">Opening a read-only view of this local Pi session.</p>
@@ -58,32 +78,11 @@
 					<p id="selected-prompt" class="selected-prompt">Select a turn from the session overview to inspect its evidence.</p>
 				</div>
 				<div id="selected-facts" class="selected-facts"></div>
-				<p id="selected-partial" class="partial-notice" hidden>Partial evidence — this turn is represented by summary facts and bounded evidence from before the viewer connected.</p>
 				<ul id="selected-signals" class="selected-signals" hidden></ul>
 				<div id="agent-reported" class="agent-reported" hidden>
 					<strong>Agent-reported final text</strong>
 					<p></p>
 				</div>
-				<details class="options-inner" id="options-details">
-					<summary>Evidence display options</summary>
-					<div class="options-body">
-						<div class="options-group">
-							<span>Show</span>
-							<label><input id="show-usage" type="checkbox" checked /> Model request facts</label>
-							<label><input id="show-tool-input" type="checkbox" checked /> Tool input</label>
-							<label><input id="show-tool-results" type="checkbox" checked /> Tool results</label>
-							<label><input id="show-timestamps" type="checkbox" /> Timestamps</label>
-							<label><input id="show-thinking" type="checkbox" checked /> Reasoning trace</label>
-							<label><input id="show-system-prompt" type="checkbox" /> System prompt sent to model</label>
-						</div>
-						<div class="options-group">
-							<span>Default expanded</span>
-							<label><input id="expand-thinking" type="checkbox" /> Reasoning traces</label>
-							<label><input id="expand-tools" type="checkbox" /> Tools</label>
-							<label><input id="expand-compactions" type="checkbox" /> Context compactions</label>
-						</div>
-					</div>
-				</details>
 				<div class="evidence-heading"><h3>Evidence</h3><span>Observed events and labeled agent reports</span></div>
 				<div id="evidence" class="evidence-list"></div>
 			</section>

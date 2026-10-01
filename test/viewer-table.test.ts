@@ -27,22 +27,27 @@ test("Turn cards are one focus stop and preserve TTFT and activity context", asy
 	assert.match(app, /cardFact\("First text", formatInvocationLatency\(turn, "firstTextMs"\)\)/);
 	assert.match(app, /fact\("First output", formatInvocationLatency\(turn, "firstOutputMs"\)\)/);
 	assert.match(app, /fact\("First text", formatInvocationLatency\(turn, "firstTextMs"\)\)/);
-	assert.match(app, /turn\.partialEvidence/);
 	assert.match(app, /scrollIntoView\(\{ behavior, block: "start" \}\)/);
 	assert.match(css, /\.turn-card:focus-visible/);
 	assert.match(css, /\.turn-card-facts/);
 });
 
-test("Evidence controls sit beside the selected turn and use plain-language labels", async () => {
+test("Evidence controls sit in session orientation, global rather than per-turn, and use plain-language labels", async () => {
 	const [html, transcript] = await Promise.all([
 		readFile(new URL("../viewer/index.html", import.meta.url), "utf8"),
 		readFile(new URL("../viewer/transcript.js", import.meta.url), "utf8"),
 	]);
+	const header = html.match(/<header class="app-header">[\s\S]*?<\/header>/)?.[0] ?? "";
+	assert.match(header, /<summary>Evidence display options<\/summary>/);
+	assert.match(header, /Reasoning trace/);
+	assert.match(header, /System prompt sent to model/);
 	const detail = html.match(/<section class="detail-panel"[\s\S]*?<\/section>/)?.[0] ?? "";
-	assert.match(detail, /<summary>Evidence display options<\/summary>/);
-	assert.match(detail, /Reasoning trace/);
-	assert.match(detail, /System prompt sent to model/);
+	assert.doesNotMatch(detail, /Evidence display options/);
 	assert.doesNotMatch(html, /<aside class="options">/);
 	assert.match(transcript, /"Reasoning trace"/);
 	assert.match(transcript, /duration unavailable/);
+	// Regression: capturing on the delayed "toggle" event lost expand/collapse state
+	// whenever a live update re-rendered the DOM before that task fired.
+	assert.match(transcript, /addEventListener\("click"/);
+	assert.doesNotMatch(transcript, /addEventListener\("toggle"/);
 });

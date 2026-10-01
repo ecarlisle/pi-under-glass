@@ -4,7 +4,7 @@ import { createEvidenceRenderer } from "./transcript.js";
 const elements = Object.fromEntries([
 	"status", "elapsed", "activity", "tokens", "cost", "context-value", "model", "thinking-level", "connection-note", "session-details",
 	"app-message", "app-message-badge", "app-message-title", "app-message-text", "workspace", "turn-detail",
-	"turn-list", "selected-kicker", "selected-title", "selected-prompt", "selected-facts", "selected-partial", "selected-signals", "agent-reported", "evidence",
+	"turn-list", "selected-kicker", "selected-title", "selected-prompt", "selected-facts", "selected-signals", "agent-reported", "evidence",
 	"options-details", "show-usage", "show-tool-input", "show-tool-results", "show-timestamps", "show-thinking",
 	"show-system-prompt", "expand-thinking", "expand-tools", "expand-compactions",
 ].map((id) => [camel(id), document.querySelector(`#${id}`)]));
@@ -159,7 +159,6 @@ function connectionNote() {
 	if (state.gaps.length > 0) return `Live, with ${state.gaps.length} event gap${state.gaps.length === 1 ? "" : "s"} observed. Some activity may be missing.`;
 	const pending = Object.keys(state.pending).length;
 	if (pending > 0) return `Live. Waiting for ${pending} out-of-order event${pending === 1 ? "" : "s"} before the sequence is complete.`;
-	if (state.session.partialHistory) return "Live. You joined after activity began; earlier turns contain summary facts and bounded evidence, not a full replay.";
 	if (state.duplicates > 0) return `Live. Complete since connected; ${state.duplicates} duplicate event${state.duplicates === 1 ? " was" : "s were"} ignored.`;
 	return "Live. Showing complete events since this viewer connected.";
 }
@@ -207,12 +206,6 @@ function renderTurnList() {
 		facts.append(errors);
 
 		card.append(heading, renderRibbon(turn, turnNumber), facts);
-		if (turn.partialEvidence) {
-			const partial = document.createElement("span");
-			partial.className = "turn-partial";
-			partial.textContent = "⚠ Partial evidence — joined after activity began";
-			card.append(partial);
-		}
 		elements.turnList.append(card);
 	});
 }
@@ -226,7 +219,7 @@ function renderRibbon(turn, turnNumber) {
 		item.className = `ribbon-segment ribbon-segment--${segment.type}`;
 		item.style.left = `${segment.left}%`;
 		item.style.width = `${segment.width}%`;
-		item.title = segment.type === "tool" ? "Tool activity" : segment.type === "response" ? "Assistant response" : "Other turn time";
+		item.title = segment.type === "error" ? "Tool error" : segment.type === "tool" ? "Tool activity" : segment.type === "response" ? "Assistant response" : "Other turn time";
 		item.setAttribute("aria-hidden", "true");
 		ribbon.append(item);
 	}
@@ -249,7 +242,6 @@ function renderSelectedTurn() {
 		elements.selectedTitle.textContent = "Choose a turn";
 		elements.selectedPrompt.textContent = "Select a turn from the session overview to inspect its evidence.";
 		elements.selectedFacts.replaceChildren();
-		elements.selectedPartial.hidden = true;
 		elements.selectedSignals.replaceChildren();
 		elements.agentReported.hidden = true;
 		evidenceRenderer.render(state, undefined);
@@ -259,7 +251,6 @@ function renderSelectedTurn() {
 	elements.selectedKicker.textContent = `Turn ${index} evidence`;
 	elements.selectedTitle.textContent = turn.prompt || "Prompt unavailable";
 	elements.selectedPrompt.textContent = "Observed session activity and agent-reported output are labeled separately.";
-	elements.selectedPartial.hidden = !turn.partialEvidence;
 	elements.selectedFacts.replaceChildren(
 		fact("Status", statusLabel(turn.status)),
 		fact("Wall time", formatDuration(turn.durationMs ?? Math.max(0, Date.now() - turn.startedAt))),
@@ -315,7 +306,7 @@ function turnCardLabel(turn, turnNumber) {
 	const duration = formatDuration(turn.durationMs ?? Math.max(0, Date.now() - turn.startedAt));
 	const tools = turn.toolCount ?? Object.keys(turn.tools ?? {}).length;
 	const errors = turn.errorCount ?? 0;
-	return `Turn ${turnNumber}: ${turn.prompt || "Prompt unavailable"}. ${statusLabel(turn.status)}. ${duration}. First text ${formatInvocationLatency(turn, "firstTextMs")}. ${tools} tool${tools === 1 ? "" : "s"}. ${errors} error${errors === 1 ? "" : "s"}.${turn.partialEvidence ? " Partial evidence." : ""}`;
+	return `Turn ${turnNumber}: ${turn.prompt || "Prompt unavailable"}. ${statusLabel(turn.status)}. ${duration}. First text ${formatInvocationLatency(turn, "firstTextMs")}. ${tools} tool${tools === 1 ? "" : "s"}. ${errors} error${errors === 1 ? "" : "s"}.`;
 }
 
 function restorePreferences() {

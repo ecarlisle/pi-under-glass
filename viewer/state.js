@@ -53,7 +53,7 @@ export function buildRibbonSegments(turn, now = Date.now()) {
 	const duration = Math.max(1, end - start);
 	const tools = Object.values(turn.tools ?? {})
 		.filter((tool) => Number.isFinite(tool.startedAt))
-		.map((tool) => ({ start: clamp(tool.startedAt, start, end), end: clamp(tool.endedAt ?? now, start, end) }))
+		.map((tool) => ({ start: clamp(tool.startedAt, start, end), end: clamp(tool.endedAt ?? now, start, end), isError: tool.isError === true }))
 		.filter((interval) => interval.end >= interval.start);
 	const response = turn.responseStartedAt
 		? { start: clamp(turn.responseStartedAt, start, end), end: clamp(turn.responseEndedAt ?? now, start, end) }
@@ -73,8 +73,9 @@ export function buildRibbonSegments(turn, now = Date.now()) {
 		const intervalStart = ordered[index];
 		const intervalEnd = ordered[index + 1];
 		const middle = intervalStart + (intervalEnd - intervalStart) / 2;
-		const type = tools.some((interval) => middle >= interval.start && middle <= interval.end)
-			? "tool"
+		const matchingTool = tools.find((interval) => middle >= interval.start && middle <= interval.end);
+		const type = matchingTool
+			? matchingTool.isError ? "error" : "tool"
 			: response && middle >= response.start && middle <= response.end
 				? "response"
 				: "outside";
@@ -125,9 +126,9 @@ function applyHello(state, hello) {
 	state.session.thinkingLevel = snapshot.thinkingLevel;
 	state.session.contextPoints = (snapshot.contextPoints ?? []).map((point) => ({ ...point, snapshot: { ...point.snapshot } }));
 	state.session.markers = (snapshot.markers ?? []).map((marker) => ({ ...marker }));
-	for (const facts of snapshot.completedTurns ?? []) hydrateTurn(state, facts, true);
+	for (const facts of snapshot.completedTurns ?? []) hydrateToolEvidence(state, hydrateTurn(state, facts));
 	if (snapshot.currentTurn) {
-		hydrateTurn(state, snapshot.currentTurn, true);
+		hydrateToolEvidence(state, hydrateTurn(state, snapshot.currentTurn));
 		state.currentTurnId = snapshot.currentTurn.id;
 	}
 	for (const marker of snapshot.markers ?? []) {
@@ -135,7 +136,7 @@ function applyHello(state, hello) {
 		if (turnId) addEvidence(state, turnId, `snapshot-marker:${marker.at}:${marker.type}`, { kind: "marker", at: marker.at, data: marker, fromSnapshot: true });
 	}
 	for (const item of snapshot.evidence ?? []) {
-		if (!item.turnId) continue;
+		if (!item.turnId || item.type === "tool.started" || item.type === "tool.completed") continue;
 		addEvidence(state, item.turnId, `snapshot:${item.id}`, { kind: "metadata", at: item.at, data: item, fromSnapshot: true });
 	}
 	state.selectedTurnId = state.currentTurnId ?? state.turnOrder.at(-1) ?? state.selectedTurnId;
@@ -315,10 +316,16 @@ function applyEvent(state, event) {
 	}
 }
 
-function hydrateTurn(state, facts, partialEvidence = false) {
+function hydrateTurn(state, facts) {
 	const turn = ensureTurn(state, facts.id, normalizeFacts(facts));
-	Object.assign(turn, normalizeFacts(facts), partialEvidence ? { partialEvidence: true } : {});
+	Object.assign(turn, normalizeFacts(facts));
 	return turn;
+}
+
+function hydrateToolEvidence(state, turn) {
+	for (const tool of Object.values(turn.tools ?? {})) {
+		addEvidence(state, turn.id, `tool:${tool.id}`, { kind: "tool", at: tool.endedAt ?? tool.startedAt, data: { ...tool }, fromSnapshot: true });
+	}
 }
 
 function normalizeFacts(facts) {

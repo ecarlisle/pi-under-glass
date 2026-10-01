@@ -56,7 +56,7 @@ test("hydrates trustworthy late-join orientation from hello snapshot", () => {
 			completedTurns: [{ id: "turn-1", status: "completed", startedAt: 100, endedAt: 190, durationMs: 90, prompt: "Inspect", modelRequests: 1, usage: { outputTokens: 0 }, toolCount: 0, errorCount: 0, tools: [], invocations: [{ id: "invocation-1", startedAt: 105, endedAt: 180, durationMs: 75, firstOutputMs: 20, firstTextMs: 30 }] }],
 			contextPoints: [{ at: 190, turnId: "turn-1", snapshot: { inputTokens: 20 } }],
 			markers: [{ type: "compaction", at: 195, turnId: "turn-2", detail: "manual · 20 tokens before", summary: "Retained facts" }],
-			evidence: [{ id: "prior-tool", type: "tool.started", at: 210, turnId: "turn-2", label: "read" }],
+			evidence: [{ id: "prior-usage", type: "turn.usage", at: 210, turnId: "turn-2" }],
 		},
 	});
 	assert.equal(state.lastSeq, 8);
@@ -65,9 +65,9 @@ test("hydrates trustworthy late-join orientation from hello snapshot", () => {
 	assert.deepEqual(state.turnOrder, ["turn-1", "turn-2"]);
 	assert.equal(state.turns["turn-1"].invocations[0].firstOutputMs, 20);
 	assert.equal(state.session.partialHistory, true);
-	assert.equal(state.turns["turn-1"].partialEvidence, true);
-	assert.equal(state.turns["turn-2"].partialEvidence, true);
 	assert.ok(turnEvidence(state, "turn-2").some((item: { kind: string }) => item.kind === "metadata"));
+	const toolEvidence = turnEvidence(state, "turn-2").find((item: { kind: string }) => item.kind === "tool");
+	assert.equal(toolEvidence?.data.name, "read");
 });
 
 test("records per-invocation latency even when provider usage is unavailable", () => {
