@@ -249,7 +249,7 @@ function renderSelectedTurn() {
 		return;
 	}
 	const index = state.turnOrder.indexOf(turn.id) + 1;
-	elements.selectedKicker.textContent = `Turn ${index} evidence`;
+	elements.selectedKicker.textContent = `Turn ${index}`;
 	elements.selectedTitle.textContent = turn.prompt || "Prompt unavailable";
 	elements.selectedPrompt.textContent = "Observed session activity and agent-reported output are labeled separately.";
 	elements.selectedFacts.replaceChildren(
