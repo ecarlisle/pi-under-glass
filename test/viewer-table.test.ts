@@ -27,6 +27,8 @@ test("Turn cards are one focus stop and preserve TTFT and activity context", asy
 	assert.match(app, /cardFact\("First text", formatInvocationLatency\(turn, "firstTextMs"\)\)/);
 	assert.match(app, /fact\("First output", formatInvocationLatency\(turn, "firstOutputMs"\)\)/);
 	assert.match(app, /fact\("First text", formatInvocationLatency\(turn, "firstTextMs"\)\)/);
+	assert.match(app, /state\.session\.partialHistory\) return "Live\. You joined after activity began/);
+	assert.match(css, /\.legend-error/);
 	assert.match(app, /scrollIntoView\(\{ behavior, block: "start" \}\)/);
 	assert.match(css, /\.turn-card:focus-visible/);
 	assert.match(css, /\.turn-card-facts/);

@@ -159,6 +159,7 @@ function connectionNote() {
 	if (state.gaps.length > 0) return `Live, with ${state.gaps.length} event gap${state.gaps.length === 1 ? "" : "s"} observed. Some activity may be missing.`;
 	const pending = Object.keys(state.pending).length;
 	if (pending > 0) return `Live. Waiting for ${pending} out-of-order event${pending === 1 ? "" : "s"} before the sequence is complete.`;
+	if (state.session.partialHistory) return "Live. You joined after activity began; earlier turns show summary facts and any tool evidence, not a full replay.";
 	if (state.duplicates > 0) return `Live. Complete since connected; ${state.duplicates} duplicate event${state.duplicates === 1 ? " was" : "s were"} ignored.`;
 	return "Live. Showing complete events since this viewer connected.";
 }

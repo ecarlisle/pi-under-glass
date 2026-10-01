@@ -94,6 +94,7 @@ h3 { margin-bottom: 0; font-size: 13px; }
 .legend-outside { background: #536158; }
 .legend-tool { background: var(--tool); }
 .legend-response { background: var(--agent); }
+.legend-error { background: var(--error); }
 
 .turn-list { padding: 6px; }
 .turn-list > .empty { padding: 48px 20px; }
