@@ -14,7 +14,7 @@
 | `viewer/transcript.js` | Selected-Turn evidence renderer. |
 | `viewer/app.js` | WebSocket (or debug replay) wiring and DOM. |
 
-`test/` has one test file per module above.
+`test/` covers each `src/` module plus viewer state and table logic. `viewer/app.js` has no direct tests.
 
 ## Event flow
 
@@ -22,7 +22,7 @@ Pi lifecycle event → handler in `src/index.ts` updates state → `publish()` w
 
 ## Auth
 
-Every request, including `/debug-fixture`, needs the extension-generated `token` query param. The WebSocket upgrade is rejected at the HTTP `upgrade` step on mismatch. Each new connection receives a `hello` with current metrics.
+The entry page `/`, `/debug-fixture`, and the `/events` WebSocket need the extension-generated `token` query param; the upgrade is rejected at the HTTP `upgrade` step on mismatch. Static CSS and JS are served without it and contain no session data. Each new connection receives a `hello` with current metrics.
 
 ## Debug mode
 

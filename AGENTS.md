@@ -24,3 +24,4 @@ Read each guide whose trigger matches the task. Load other documentation only as
 | Adding dependencies, features, or UI, or changing the server, protocol, or security behavior | [Guardrails](docs/guardrails.md) |
 | Running, testing, smoke-testing, or packaging the extension | [Development and validation](docs/development.md) |
 | Naming or describing sessions, turns, messages, usage, or latency in code, UI, or docs | [Terminology](docs/terms.md) |
+| Changing viewer visuals, layout, colors, typography, or components | [Design system](.stitch/DESIGN.md) |

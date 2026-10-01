@@ -44,22 +44,8 @@ The viewer is intentionally ephemeral and never persists conversation data. A ne
 
 ## Local security
 
-The server binds only to IPv4 loopback (`127.0.0.1`). Each Pi process creates a random token, and both the viewer entry page and WebSocket require it. Static CSS and JavaScript contain no session data.
+The server binds only to loopback (`127.0.0.1`), and the viewer page and WebSocket require a random per-process token. Details: [Architecture](docs/architecture.md) and [Guardrails](docs/guardrails.md).
 
 ## Development
 
-```sh
-pnpm check
-pnpm test
-pnpm pack:dry
-```
-
-Inside Pi, run the viewer with deterministic sample activity:
-
-```text
-/underglass debug
-```
-
-This opens an explicitly labeled sample-data view and plays `fixtures/sample-session.json` through the same browser event handler used for live Pi traffic. Edit that JSON file to exercise different message, tool, and usage states. Debug mode does not connect to Pi or retain session data. Refresh the page to restart the sample from the beginning.
-
-The wire format lives in `src/protocol.ts` and currently uses protocol version `2`. The session-state events are additive; older version-2 viewers safely ignore event types they do not recognize.
+Commands, validation, and `/underglass debug` sample-data mode: [Development and validation](docs/development.md). Wire protocol and compatibility rules: [Architecture](docs/architecture.md). Edit `fixtures/sample-session.json` to exercise different message, tool, and usage states.

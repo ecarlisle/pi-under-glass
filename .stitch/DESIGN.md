@@ -75,6 +75,8 @@ spacing:
 
 # Design System: Pi Under Glass
 
+**Use when:** Changing viewer visuals, layout, colors, typography, or components
+
 ## 1. Visual Theme & Atmosphere
 
 Pi Under Glass is a restrained, dark, evidence-first interface. It should feel like a clear pane placed over a running local agent session: quiet enough to leave the transcript in control, but structured enough to make state, timing, tools, and errors immediately legible. Near-black green neutrals create a calm technical backdrop, while thin borders and small shifts in surface tone establish hierarchy without decorative elevation.
