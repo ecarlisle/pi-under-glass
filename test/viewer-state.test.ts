@@ -70,6 +70,23 @@ test("hydrates trustworthy late-join orientation from hello snapshot", () => {
 	assert.equal(toolEvidence?.data.name, "read");
 });
 
+test("a viewer connecting before any turn is not flagged as a late join", () => {
+	const state = reduceIncoming(createSessionState(), {
+		...hello,
+		snapshot: {
+			sequence: 3,
+			model: { provider: "openai", id: "gpt-5", name: "GPT-5" },
+			thinkingLevel: "high",
+			currentTurn: undefined,
+			completedTurns: [],
+			contextPoints: [],
+			markers: [{ type: "model", at: 5, detail: "gpt-5" }],
+			evidence: [{ id: "s1", type: "session.started", at: 1 }],
+		},
+	});
+	assert.equal(state.session.partialHistory, false);
+});
+
 test("records per-invocation latency even when provider usage is unavailable", () => {
 	let state = reduceIncoming(createSessionState(), hello);
 	state = reduceIncoming(state, event(1, "turn.started", { id: "turn-1", prompt: "Measure it" }, 100));

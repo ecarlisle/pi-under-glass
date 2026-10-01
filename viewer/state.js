@@ -120,7 +120,7 @@ function applyHello(state, hello) {
 	state.session.metrics = hello.metrics ?? emptyMetrics();
 	const snapshot = hello.snapshot;
 	if (!snapshot) return state;
-	state.session.partialHistory = (snapshot.sequence ?? 0) > 0 && Boolean(snapshot.currentTurn || snapshot.completedTurns?.length || snapshot.evidence?.length || snapshot.markers?.length);
+	state.session.partialHistory = Boolean(snapshot.currentTurn || snapshot.completedTurns?.length);
 	state.lastSeq = Math.max(state.lastSeq, snapshot.sequence ?? 0);
 	state.session.model = snapshot.model;
 	state.session.thinkingLevel = snapshot.thinkingLevel;

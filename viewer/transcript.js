@@ -23,16 +23,14 @@ export function createEvidenceRenderer(container, getOptions) {
 			sessionId = state.session.id;
 			container.replaceChildren();
 			if (!turnId) return container.append(empty("Select a turn to inspect its evidence."));
-			const items = turnEvidence(state, turnId).sort((a, b) => a.at - b.at);
+			// Event-name-only metadata from a join snapshot carries no content, so it is not listed.
+			const items = turnEvidence(state, turnId).filter((item) => item.kind !== "metadata").sort((a, b) => a.at - b.at);
 			if (items.length === 0) return container.append(empty("No detailed evidence was retained for this turn."));
 			const options = getOptions();
 			const tools = items.filter((item) => item.kind === "tool");
 			const latestTool = tools.at(-1);
 			const latestAssistantAt = Math.max(0, ...items.filter((item) => item.kind === "assistant").map((item) => item.at));
-			const summarized = items.filter((item) => item.kind === "metadata");
-			if (summarized.length > 0) container.append(summaryCard(summarized));
 			for (const item of items) {
-				if (item.kind === "metadata") continue;
 				const node = renderItem(item, options, openState, latestTool?.id === item.id, latestAssistantAt, sessionId);
 				if (node) container.append(node);
 			}
@@ -114,14 +112,6 @@ function block(item, title, text, className, timestamp) {
 	body.textContent = text ?? "";
 	wrapper.append(body);
 	return wrapper;
-}
-
-function summaryCard(items) {
-	const counts = new Map();
-	for (const item of items) counts.set(item.data.type, (counts.get(item.data.type) ?? 0) + 1);
-	const names = [...counts].map(([type, count]) => (count > 1 ? `${type} ×${count}` : type)).join(", ");
-	const text = `Pi reported ${items.length} event${items.length === 1 ? "" : "s"} before this viewer connected (${names}). Their content was not retained.`;
-	return block({ id: "metadata-summary" }, "Earlier activity (summary only)", text, "metadata-evidence", undefined);
 }
 
 function details(id, title, text, className, defaultOpen, openState, sessionId, markdown = false) {

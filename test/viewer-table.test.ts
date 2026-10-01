@@ -52,4 +52,7 @@ test("Evidence controls sit in session orientation, global rather than per-turn,
 	// whenever a live update re-rendered the DOM before that task fired.
 	assert.match(transcript, /addEventListener\("click"/);
 	assert.doesNotMatch(transcript, /addEventListener\("toggle"/);
+	// Event-name-only snapshot metadata carries no content and is not listed.
+	assert.match(transcript, /item\.kind !== "metadata"/);
+	assert.doesNotMatch(transcript, /Earlier (evidence|activity)/);
 });
